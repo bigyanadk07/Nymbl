@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { errorHandler } = require('./utils/errorhandler.util');
-const apiGateway = require('./middleware/apigateway.middleware');
+// const apiGateway = require('./middleware/apigateway.middleware');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
@@ -13,6 +13,10 @@ const apiRoutes = require('./routes/apis.routes');
 const usageRoutes = require('./routes/usuage.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
 const paymentRoutes = require('./routes/payment.routes');
+
+// Import the marketplace
+const helloWorldRoutes = require('./market/helloworld/helloworld.routes');
+
 
 // Create Express app
 const app = express();
@@ -32,18 +36,18 @@ app.use('/usage', usageRoutes);
 app.use('/subscriptions', subscriptionRoutes);
 app.use('/payments', paymentRoutes);
 
-// API Gateway for actual API endpoints
-app.use('/api/v1', apiGateway, (req, res) => {
-  // This is where you'd handle the actual API functionality
-  // For now, we're just returning a successful response
-  res.json({
-    success: true,
-    message: 'API request successful',
-    endpoint: req.originalUrl,
-    method: req.method,
-    timestamp: new Date().toISOString()
-  });
-});
+
+
+// API MARKETPLACE API
+
+// Hello World API
+
+
+app.use('/api/v1/hello', helloWorldRoutes);
+
+
+// API MARKETPLACE END
+
 
 // 404 handler
 app.use((req, res, next) => {

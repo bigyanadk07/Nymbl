@@ -10,6 +10,8 @@ import AuthPage from './pages/Auth/Auth';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Packages from './pages/Dashboard/Packages';
 import PackageDetails from './pages/Dashboard/PackageDetails';
+import Success from './components/payment/PaymentSuccess';
+import Failure from './components/payment/PaymentFailure';
 
 const App: React.FC = () => {
   return (
@@ -23,6 +25,8 @@ const App: React.FC = () => {
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/payment/success" element={<Success />} />
+            <Route path="/payment/failure" element={<Failure />} />
 
             {/* Protected Routes */}
             <Route

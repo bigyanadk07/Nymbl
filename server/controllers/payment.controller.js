@@ -386,7 +386,7 @@ const handleEsewaSuccess = async (req, res) => {
     /*
      * Verify eSewa signature.
      */
-const isValidSignature = verifySignature(paymentResponse);
+    const isValidSignature = verifySignature(paymentResponse);
 
 
     if (!isValidSignature) {
@@ -594,41 +594,21 @@ const isValidSignature = verifySignature(paymentResponse);
     await subscription.save();
 
 
-    /*
-     * Final successful response.
-     */
-    return res.status(200).json({
-
-      success: true,
-
-      message:
-        'Payment successful and subscription activated',
-
-      payment: {
-
-        id:
-          payment._id,
-
-        transactionUuid:
-          payment.transactionUuid,
-
-        transactionCode:
-          payment.transactionCode,
-
-        amount:
-          payment.amount,
-
-        status:
-          payment.status,
-
-        paidAt:
-          payment.paidAt
-
-      },
-
-      subscription
-
-    });
+/*
+ * Redirect user to the frontend success page.
+ *
+ * Payment has already been verified and the
+ * subscription has already been activated above.
+ */
+return res.redirect(
+  `${process.env.FRONTEND_URL}/payment/success` +
+  `?transactionCode=${encodeURIComponent(
+    payment.transactionCode || ''
+  )}` +
+  `&amount=${encodeURIComponent(
+    payment.amount
+  )}`
+);
 
   } catch (error) {
 
@@ -796,27 +776,9 @@ const handleEsewaFailure = async (req, res) => {
         }
 
 
-        return res.status(200).json({
-
-          success: false,
-
-          message:
-            'eSewa payment failed or was cancelled',
-
-          payment: {
-
-            id:
-              payment._id,
-
-            transactionUuid:
-              payment.transactionUuid,
-
-            status:
-              payment.status
-
-          }
-
-        });
+return res.redirect(
+  `${process.env.FRONTEND_URL}/payment/failure`
+);
       }
     }
 

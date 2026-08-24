@@ -164,19 +164,78 @@ const getMySubscriptions = async (req, res) => {
     const userId = req.user._id;
 
 
+    /*
+     * Get all subscriptions belonging to the
+     * currently authenticated user.
+     *
+     * Populate packageId so the frontend receives
+     * package information instead of only the
+     * package UUID.
+     */
     const subscriptions =
       await Subscription.find({
-
         userId
-
+      })
+      .populate(
+        'packageId',
+        'name description price billingCycle features isPopular'
+      )
+      .sort({
+        createdAt: -1
       });
+
+
+    /*
+     * Convert the database structure into a
+     * frontend-friendly response.
+     */
+    const formattedSubscriptions =
+      subscriptions.map((subscription) => ({
+
+        id:
+          subscription._id,
+
+        package:
+          subscription.packageId
+            ? {
+                id:
+                  subscription.packageId._id,
+
+                name:
+                  subscription.packageId.name,
+
+                description:
+                  subscription.packageId.description,
+
+                price:
+                  subscription.packageId.price,
+
+                billingCycle:
+                  subscription.packageId.billingCycle
+              }
+            : null,
+
+        status:
+          subscription.status,
+
+        currentPeriodStart:
+          subscription.currentPeriodStart,
+
+        currentPeriodEnd:
+          subscription.currentPeriodEnd,
+
+        createdAt:
+          subscription.createdAt
+
+      }));
 
 
     return res.status(200).json({
 
       success: true,
 
-      subscriptions
+      subscriptions:
+        formattedSubscriptions
 
     });
 

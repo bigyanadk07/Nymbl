@@ -132,67 +132,40 @@ const createPaymentPayload = ({
 // ============================================================
 // VERIFY RETURNED SIGNATURE
 // ============================================================
+//
+// eSewa's success/failure callback signs a DIFFERENT field set
+// than the outbound payment payload. The exact fields and order
+// are given by the response's own `signed_field_names`, so the
+// message must be built dynamically from that — never hardcoded.
+// ============================================================
 
-const verifySignature = ({
-  totalAmount,
-  transactionUuid,
-  productCode,
-  signature
-}) => {
+const verifySignature = (paymentResponse) => {
 
-  if (
-    !totalAmount ||
-    !transactionUuid ||
-    !productCode ||
-    !signature
-  ) {
+  const { signature, signed_field_names: signedFieldNames } = paymentResponse;
 
+  if (!signature || !signedFieldNames) {
     return false;
-
   }
 
+  const fields = signedFieldNames.split(',');
 
-  const expectedSignature =
-    generateSignature({
+  const message = fields
+    .map((field) => `${field}=${paymentResponse[field]}`)
+    .join(',');
 
-      totalAmount,
+  const expectedSignature = crypto
+    .createHmac('sha256', esewaConfig.secretKey)
+    .update(message)
+    .digest('base64');
 
-      transactionUuid,
+  const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+  const receivedBuffer = Buffer.from(signature, 'utf8');
 
-      productCode
-
-    });
-
-
-  const expectedBuffer =
-    Buffer.from(
-      expectedSignature,
-      'utf8'
-    );
-
-
-  const receivedBuffer =
-    Buffer.from(
-      signature,
-      'utf8'
-    );
-
-
-  if (
-    expectedBuffer.length !==
-    receivedBuffer.length
-  ) {
-
+  if (expectedBuffer.length !== receivedBuffer.length) {
     return false;
-
   }
 
-
-  return crypto.timingSafeEqual(
-    expectedBuffer,
-    receivedBuffer
-  );
-
+  return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 };
 
 

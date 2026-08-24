@@ -386,18 +386,7 @@ const handleEsewaSuccess = async (req, res) => {
     /*
      * Verify eSewa signature.
      */
-    const isValidSignature =
-      verifySignature({
-
-        totalAmount,
-
-        transactionUuid,
-
-        productCode,
-
-        signature
-
-      });
+const isValidSignature = verifySignature(paymentResponse);
 
 
     if (!isValidSignature) {

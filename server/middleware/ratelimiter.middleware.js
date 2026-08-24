@@ -1,8 +1,8 @@
 // middleware/rateLimiter.js
 const rateLimit = require('express-rate-limit');
-const ApiKey = require('../models/ApiKey');
-const Api = require('../models/Api');
-const ApiUsage = require('../models/ApiUsuage');
+const ApiKey = require('../models/apikey.model');
+const Api = require('../models/api.model');
+const ApiUsage = require('../models/apiusuage.model');
 
 // Rate limiter middleware for API endpoints
 const apiRateLimiter = async (req, res, next) => {

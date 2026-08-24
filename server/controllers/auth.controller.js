@@ -1,9 +1,9 @@
 // controllers/authController.js
 
 const jwt = require('jsonwebtoken');
-const config = require('../config/default');
-const User = require('../models/User');
-const otpService = require('../services/otpService');
+const config = require('../config/default.config');
+const User = require('../models/user.model');
+const otpService = require('../services/otp.service');
 
 // Generate JWT token
 const generateToken = (user) => {

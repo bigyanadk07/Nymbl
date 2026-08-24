@@ -1,6 +1,6 @@
 // middleware/apiGateway.js
-const { apiRateLimiter } = require('./rateLimiter');
-const usageController = require('../controllers/usageController');
+const { apiRateLimiter } = require('./ratelimiter.middleware');
+const usageController = require('../controllers/usuage.controller');
 
 // API Gateway middleware to handle API requests
 const apiGateway = async (req, res, next) => {

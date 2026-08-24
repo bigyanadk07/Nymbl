@@ -1,9 +1,9 @@
 // routes/apis.js
 const express = require('express');
 const router = express.Router();
-const apiController = require('../controllers/apiController');
-const auth = require('../middleware/auth');
-const { publicRateLimiter } = require('../middleware/rateLimiter');
+const apiController = require('../controllers/api.controller');
+const auth = require('../middleware/auth.middleware');
+const { publicRateLimiter } = require('../middleware/ratelimiter.middleware');
 
 // GET /apis - Get all APIs
 router.get('/', publicRateLimiter, apiController.getAllApis);

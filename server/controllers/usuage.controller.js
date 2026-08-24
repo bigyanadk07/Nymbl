@@ -1,7 +1,7 @@
 // controllers/usageController.js
-const ApiUsage = require('../models/ApiUsuage');
-const ApiKey = require('../models/ApiKey');
-const Api = require('../models/Api');
+const ApiUsage = require('../models/apiusuage.model');
+const ApiKey = require('../models/apikey.model');
+const Api = require('../models/api.model');
 
 // Track API usage (for middleware to call)
 exports.trackApiUsage = async (apiKeyInfo, responseTime, statusCode) => {

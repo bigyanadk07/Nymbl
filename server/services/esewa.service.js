@@ -4,7 +4,7 @@ const crypto =
   require('crypto');
 
 const esewaConfig =
-  require('../config/esewa');
+  require('../config/esewa.config');
 
 
 // ============================================================

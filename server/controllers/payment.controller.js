@@ -1,8 +1,8 @@
-const Payment = require('../models/Payment');
-const Subscription = require('../models/Subscription');
-const Package = require('../models/Package');
+const Payment = require('../models/payment.model');
+const Subscription = require('../models/subscription.model');
+const Package = require('../models/package.model');
 
-const esewaConfig = require('../config/esewa');
+const esewaConfig = require('../config/esewa.config');
 
 const {
   generateTransactionUuid,

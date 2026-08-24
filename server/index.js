@@ -1,12 +1,12 @@
 // server.js
 require('dotenv').config();
 const app = require('./app');
-const config = require('./config/default');
-const connectDB = require('./config/db');
-const { checkAndRenewSubscriptions } = require('./services/paymentService');
+const config = require('./config/default.config');
+const connectDB = require('./config/db.config');
+const { checkAndRenewSubscriptions } = require('./services/payment.service');
 const {
   runSubscriptionExpirationJob
-} = require('./jobs/subscriptionJob');
+} = require('./jobs/subscription.job');
 
 // Connect to database
 connectDB();

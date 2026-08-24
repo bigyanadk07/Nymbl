@@ -1,7 +1,7 @@
 // services/paymentService.js
 
 const Subscription =
-  require('../models/Subscription');
+  require('../models/subscription.model');
 
 
 // ============================================================

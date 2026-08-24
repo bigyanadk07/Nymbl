@@ -5,9 +5,9 @@ const router = express.Router();
 const {
   createSubscription,
   getMySubscriptions
-} = require('../controllers/subscriptionController');
+} = require('../controllers/subscription.controller');
 
-const authMiddleware = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth.middleware');
 
 
 // Subscribe to a package

@@ -1,8 +1,8 @@
 // controllers/apiController.js
-const Api = require('../models/Api');
-const ApiKey = require('../models/ApiKey');
-const Subscription = require('../models/Subscription');
-const apiKeyGenerator = require('../utils/apiKeyGenerator');
+const Api = require('../models/api.model');
+const ApiKey = require('../models/apikey.model');
+const Subscription = require('../models/subscription.model');
+const apiKeyGenerator = require('../utils/keygen.util');
 
 // Get all available APIs
 exports.getAllApis = async (req, res) => {

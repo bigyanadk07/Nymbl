@@ -10,7 +10,7 @@ const {
   handleEsewaFailure
 } = require('../controllers/payment.controller');
 
-const authMiddleware = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth.middleware');
 
 
 // Initiate eSewa payment

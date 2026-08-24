@@ -2,9 +2,9 @@
 
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
-const auth = require('../middleware/auth');
-const { publicRateLimiter } = require('../middleware/rateLimiter');
+const authController = require('../controllers/auth.controller');
+const auth = require('../middleware/auth.middleware');
+const { publicRateLimiter } = require('../middleware/ratelimiter.middleware');
 
 // =============================================
 // 🔐 Email/Password Routes (NEW - Use these!)

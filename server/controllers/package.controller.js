@@ -1,5 +1,5 @@
-const Package = require('../models/Package');
-const Subscription = require('../models/Subscription');
+const Package = require('../models/package.model');
+const Subscription = require('../models/subscription.model');
 
 
 // ============================================================

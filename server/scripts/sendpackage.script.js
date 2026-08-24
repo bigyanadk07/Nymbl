@@ -2,8 +2,8 @@
 
 require('dotenv').config({ path: '../.env' });
 const mongoose = require('mongoose');
-const Package = require('../models/Package');
-const Api = require('../models/Api');
+const Package = require('../models/package.model');
+const Api = require('../models/api.model');
 
 // Sample APIs to seed if none exist
 // const sampleApis = [

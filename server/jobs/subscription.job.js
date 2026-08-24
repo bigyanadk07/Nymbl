@@ -1,7 +1,7 @@
 // jobs/subscriptionJob.js
 
 const paymentService =
-  require('../services/paymentService');
+  require('../services/payment.service');
 
 
 // ============================================================

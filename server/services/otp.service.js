@@ -1,6 +1,6 @@
 // services/otpService.js
 const twilio = require('twilio');
-const config = require('../config/default');
+const config = require('../config/default.config');
 
 // Twilio client configuration
 let twilioClient;

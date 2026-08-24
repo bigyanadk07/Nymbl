@@ -3,16 +3,16 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const { errorHandler } = require('./utils/errorHandler');
-const apiGateway = require('./middleware/apiGateway');
+const { errorHandler } = require('./utils/errorhandler.util');
+const apiGateway = require('./middleware/apigateway.middleware');
 
 // Import routes
-const authRoutes = require('./routes/auth');
-const packageRoutes = require('./routes/packages');
-const apiRoutes = require('./routes/apis');
-const usageRoutes = require('./routes/usuage');
-const subscriptionRoutes = require('./routes/subscription');
-const paymentRoutes = require('./routes/payment');
+const authRoutes = require('./routes/auth.routes');
+const packageRoutes = require('./routes/packages.routes');
+const apiRoutes = require('./routes/apis.routes');
+const usageRoutes = require('./routes/usuage.routes');
+const subscriptionRoutes = require('./routes/subscription.routes');
+const paymentRoutes = require('./routes/payment.routes');
 
 // Create Express app
 const app = express();

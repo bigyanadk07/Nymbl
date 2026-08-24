@@ -5,14 +5,14 @@ const express = require('express');
 const router = express.Router();
 
 const packageController =
-  require('../controllers/packageController');
+  require('../controllers/package.controller');
 
 const auth =
-  require('../middleware/auth');
+  require('../middleware/auth.middleware');
 
 const {
   publicRateLimiter
-} = require('../middleware/rateLimiter');
+} = require('../middleware/ratelimiter.middleware');
 
 
 // ============================================================

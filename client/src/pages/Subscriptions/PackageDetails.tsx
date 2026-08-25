@@ -188,18 +188,18 @@ const PackageDetails: React.FC = () => {
        * The browser now leaves our application
        * and goes to the eSewa payment page.
        */
-console.log('eSewa payment URL:', form.action);
-console.log(
-  'eSewa payment fields:',
-  Object.fromEntries(
-    Array.from(form.elements).map((element) => [
-      element.name,
-      element.value
-    ])
-  )
-);
+      console.log('eSewa payment URL:', form.action);
+      console.log(
+        'eSewa payment fields:',
+        Object.fromEntries(
+          Array.from(form.elements).map((element) => [
+            element.name,
+            element.value
+          ])
+        )
+      );
 
-form.submit();
+      form.submit();
 
     } catch (err: any) {
       console.error(
@@ -324,22 +324,39 @@ form.submit();
 
 
         {/* Back */}
+        <div className='flex justify-between'>
+          <div className="mb-8">
 
-        <div className="mb-8">
+            <Link
+              to="/packages"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5B6270] hover:text-[#14161F] transition-colors"
+            >
 
-          <Link
-            to="/packages"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5B6270] hover:text-[#14161F] transition-colors"
-          >
+              <span aria-hidden="true">
+                ←
+              </span>
 
-            <span aria-hidden="true">
-              ←
-            </span>
+              Back to packages
 
-            Back to packages
+            </Link>
 
-          </Link>
+          </div>
+          <div className="mb-8">
 
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5B6270] hover:text-[#14161F] transition-colors"
+            >
+              View Dashboard
+              <span aria-hidden="true">
+                →
+              </span>
+
+
+
+            </Link>
+
+          </div>
         </div>
 
 
@@ -569,13 +586,12 @@ form.submit();
                     isSubscribed ||
                     subscribing
                   }
-                  className={`px-7 py-3 font-semibold rounded-md transition-colors ${
-                    isSubscribed
+                  className={`px-7 py-3 font-semibold rounded-md transition-colors ${isSubscribed
                       ? 'bg-[#E9F5F4] text-[#0B7A79] cursor-default'
                       : subscribing
                         ? 'bg-[#5FBFBD] text-white cursor-wait'
                         : 'bg-[#14161F] hover:bg-[#272A36] text-white'
-                  }`}
+                    }`}
                 >
 
                   {subscriptionLoading
@@ -596,13 +612,12 @@ form.submit();
               {subscriptionMessage && (
 
                 <div
-                  className={`mt-4 text-sm font-medium ${
-                    subscriptionMessage
+                  className={`mt-4 text-sm font-medium ${subscriptionMessage
                       .toLowerCase()
                       .includes('success')
                       ? 'text-[#0B7A79]'
                       : 'text-[#B4442E]'
-                  }`}
+                    }`}
                 >
 
                   {subscriptionMessage}

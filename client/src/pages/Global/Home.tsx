@@ -117,10 +117,10 @@ const Home: React.FC = () => {
                     Welcome back, <span className="font-semibold text-[#14161F]">{user?.name}</span>
                   </p>
                   <Link
-                    to="/dashboard"
+                    to="/subscriptions"
                     className="mt-5 group inline-flex items-center gap-2 bg-[#14161F] text-white px-6 py-3 text-sm font-medium rounded-md hover:bg-[#272A36] transition-colors"
                   >
-                    Go to dashboard
+                    View your subscription
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
                 </div>

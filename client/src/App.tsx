@@ -7,9 +7,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/common/Navbar';
 import Home from './pages/Global/Home';
 import AuthPage from './pages/Auth/Auth';
+import Subscriptions from './pages/Subscriptions/Subscriptions';
 import Dashboard from './pages/Dashboard/Dashboard';
-import Packages from './pages/Dashboard/Packages';
-import PackageDetails from './pages/Dashboard/PackageDetails';
+import Packages from './pages/Subscriptions/Packages';
+import PackageDetails from './pages/Subscriptions/PackageDetails';
 import Success from './components/payment/PaymentSuccess';
 import Failure from './components/payment/PaymentFailure';
 
@@ -30,6 +31,14 @@ const App: React.FC = () => {
 
             {/* Protected Routes */}
             <Route
+              path="/subscriptions"
+              element={
+                <ProtectedRoute>
+                  <Subscriptions />
+                </ProtectedRoute>
+              }
+            />
+                        <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>

@@ -62,11 +62,11 @@ const Packages: React.FC = () => {
         {/* Top Navigation */}
         <div className="mb-10">
           <Link
-            to="/dashboard"
+            to="/subscriptions"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5B6270] hover:text-[#14161F] transition-colors"
           >
             <span aria-hidden="true">←</span>
-            Back to dashboard
+            Back to subscriptions
           </Link>
         </div>
 
@@ -197,10 +197,10 @@ const Packages: React.FC = () => {
         {/* Bottom Navigation */}
         <div className="mt-12 text-center">
           <Link
-            to="/dashboard"
+            to="/subscriptions"
             className="text-sm text-[#5B6270] hover:text-[#14161F] transition-colors"
           >
-            ← Return to dashboard
+            ← Return to subscriptions
           </Link>
         </div>
 

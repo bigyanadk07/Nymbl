@@ -96,6 +96,89 @@
     }
   };
 
+  // Get APIs accessible through user's active subscriptions
+exports.getAccessibleApis = async (req, res) => {
+  try {
+    // Find all active subscriptions belonging to the user
+    const subscriptions = await Subscription.find({
+      userId: req.user._id,
+      status: 'active'
+    }).populate({
+      path: 'packageId',
+      populate: {
+        path: 'apis'
+      }
+    });
+
+    // Collect all APIs from active subscriptions
+    const apiMap = new Map();
+
+    subscriptions.forEach(subscription => {
+      if (!subscription.packageId) {
+        return;
+      }
+
+      subscription.packageId.apis.forEach(api => {
+        if (api && !apiMap.has(api._id.toString())) {
+          apiMap.set(api._id.toString(), api);
+        }
+      });
+    });
+
+    const accessibleApis = Array.from(apiMap.values());
+
+    // Find the user's active API keys
+    const apiKeys = await ApiKey.find({
+      userId: req.user._id,
+      isActive: true
+    });
+
+    // Create a lookup map:
+    // API ID -> API key
+    const apiKeyMap = new Map();
+
+    apiKeys.forEach(apiKey => {
+      apiKeyMap.set(apiKey.apiId.toString(), apiKey);
+    });
+
+    // Combine API information with API key information
+    const result = accessibleApis.map(api => {
+      const apiKey = apiKeyMap.get(api._id.toString());
+
+      return {
+        id: api._id,
+        name: api.name,
+        description: api.description,
+        category: api.category,
+        endpoint: api.endpoint,
+        usageLimit: api.usageLimit,
+
+        hasApiKey: !!apiKey,
+
+        apiKey: apiKey
+          ? {
+              id: apiKey._id,
+              createdAt: apiKey.createdAt
+            }
+          : null
+      };
+    });
+
+    return res.json({
+      success: true,
+      apis: result
+    });
+
+  } catch (err) {
+    console.error('Get accessible APIs error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
   // Generate a new API key for a specific API
   exports.generateApiKey = async (req, res) => {
     try {

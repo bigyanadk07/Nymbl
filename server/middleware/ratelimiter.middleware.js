@@ -1,69 +1,164 @@
-// middleware/rateLimiter.js
+// middleware/ratelimiter.middleware.js
+
 const rateLimit = require('express-rate-limit');
-const ApiKey = require('../models/apikey.model');
-const Api = require('../models/api.model');
+
 const ApiUsage = require('../models/apiusuage.model');
 
-// Rate limiter middleware for API endpoints
+
+// ============================================================
+// API USAGE / QUOTA CHECK
+// ============================================================
+
 const apiRateLimiter = async (req, res, next) => {
-  const apiKey = req.header('X-API-Key');
-  
-  if (!apiKey) {
-    return res.status(401).json({ message: 'API key is required' });
-  }
-  
+
   try {
-    // Find the API key in the database
-    const apiKeyDoc = await ApiKey.findOne({ key: apiKey, isActive: true });
-    
-    if (!apiKeyDoc) {
-      return res.status(401).json({ message: 'Invalid or inactive API key' });
+
+    if (!req.apiKeyInfo) {
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          'API Gateway context is missing'
+
+      });
+
     }
-    
-    // Get the API details to check usage limits
-    const api = await Api.findById(apiKeyDoc.apiId);
-    
-    if (!api) {
-      return res.status(404).json({ message: 'API not found' });
-    }
-    
-    // Count the current usage for the current month
+
+
+    const {
+      apiKeyId
+    } = req.apiKeyInfo;
+
+
+    // --------------------------------------------------------
+    // Current month
+    // --------------------------------------------------------
+
     const startOfMonth = new Date();
+
     startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-    
-    const usage = await ApiUsage.countDocuments({
-      apiKeyId: apiKeyDoc._id,
-      timestamp: { $gte: startOfMonth }
-    });
-    
-    // Check if usage exceeds the limit
-    if (usage >= api.usageLimit) {
-      return res.status(429).json({ message: 'API usage limit exceeded' });
+
+    startOfMonth.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+
+    // --------------------------------------------------------
+    // Get API usage
+    // --------------------------------------------------------
+
+    const usage =
+      await ApiUsage.countDocuments({
+
+        apiKeyId,
+
+        timestamp: {
+          $gte: startOfMonth
+        }
+
+      });
+
+
+    // --------------------------------------------------------
+    // API monthly limit
+    //
+    // For the first implementation we use the API's
+    // usageLimit field.
+    //
+    // Later we will move package-specific limits here.
+    // --------------------------------------------------------
+
+    const Api =
+      require('../models/api.model');
+
+    const api =
+      await Api.findById(
+        req.apiKeyInfo.apiId
+      );
+
+
+    if (!api) {
+
+      return res.status(404).json({
+
+        success: false,
+
+        message: 'API not found'
+
+      });
+
     }
-    
-    // Store the API key info for later logging
-    req.apiKeyInfo = {
-      apiKeyId: apiKeyDoc._id,
-      apiId: api._id,
-      endpoint: req.originalUrl
-    };
-    
+
+
+    if (usage >= api.usageLimit) {
+
+      return res.status(429).json({
+
+        success: false,
+
+        message:
+          'API monthly usage limit exceeded'
+
+      });
+
+    }
+
+
     next();
-  } catch (err) {
-    console.error('Rate limiter error:', err);
-    res.status(500).json({ message: 'Server error during rate limiting' });
+
+  } catch (error) {
+
+    console.error(
+      'API usage limiter error:',
+      error
+    );
+
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        'Server error while checking API usage'
+
+    });
+
   }
+
 };
 
-// General rate limiter for public endpoints
+
+// ============================================================
+// GENERAL PUBLIC RATE LIMITER
+// ============================================================
+
 const publicRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: { message: 'Too many requests from this IP, please try again later' }
+
+  windowMs: 15 * 60 * 1000,
+
+  max: 100,
+
+  message: {
+
+    success: false,
+
+    message:
+      'Too many requests from this IP, please try again later'
+
+  }
+
 });
 
+
 module.exports = {
+
   apiRateLimiter,
+
   publicRateLimiter
+
 };

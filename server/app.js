@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { errorHandler } = require('./utils/errorhandler.util');
-// const apiGateway = require('./middleware/apigateway.middleware');
+const apiGateway = require('./middleware/apigateway.middleware');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
@@ -43,7 +43,11 @@ app.use('/payments', paymentRoutes);
 // Hello World API
 
 
-app.use('/api/v1/hello', helloWorldRoutes);
+app.use(
+  '/api/v1/hello',
+  apiGateway,
+  helloWorldRoutes
+);
 
 
 // API MARKETPLACE END

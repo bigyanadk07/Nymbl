@@ -286,7 +286,7 @@ const Dashboard: React.FC = () => {
                         <div className="mt-3 flex items-baseline">
 
                           <span className="font-display text-3xl font-semibold text-[#14161F]">
-                            ${pkg.price}
+                            NPR {pkg.price}
                           </span>
 
                           <span className="text-sm text-[#8B909C] ml-1.5 font-mono">

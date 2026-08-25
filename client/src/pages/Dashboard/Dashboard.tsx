@@ -6,7 +6,7 @@ import {
   CircleDot,
   Copy,
   KeyRound,
-  MoreHorizontal,
+  Loader2,
   Server,
   XCircle,
 } from 'lucide-react';
@@ -14,7 +14,10 @@ import {
 import { Link } from 'react-router-dom';
 
 import {
+  getAccessibleApis,
   getApiKeys,
+  generateApiKey,
+  type AccessibleApi,
   type ApiKey,
 } from '../../services/apiKey.service';
 
@@ -27,7 +30,14 @@ const Dashboard = () => {
   // State
   // ==========================================================
 
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  // Primary data source: every API granted through an active
+  // subscription, whether or not a key has been generated yet.
+  const [accessibleApis, setAccessibleApis] = useState<AccessibleApi[]>([]);
+
+  // Actual raw key values, keyed by api.id. getAccessibleApis()
+  // intentionally does not expose the raw key, so this comes
+  // from getApiKeys() and is merged in for display/copy.
+  const [keysByApiId, setKeysByApiId] = useState<Record<string, ApiKey>>({});
 
   const [loading, setLoading] = useState(true);
 
@@ -35,43 +45,98 @@ const Dashboard = () => {
 
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
 
+  const [generatingApiId, setGeneratingApiId] = useState<string | null>(null);
+
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
   // ==========================================================
-  // Fetch API Keys
+  // Fetch Accessible APIs + Keys
   // ==========================================================
 
   useEffect(() => {
-    const loadApiKeys = async () => {
+    const loadDashboardData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const data = await getApiKeys();
+        const [accessible, keys] = await Promise.all([
+          getAccessibleApis(),
+          getApiKeys(),
+        ]);
 
-        setApiKeys(data);
+        setAccessibleApis(accessible);
+
+        const map: Record<string, ApiKey> = {};
+
+        keys.forEach((key) => {
+          map[key.api.id] = key;
+        });
+
+        setKeysByApiId(map);
       } catch (error) {
-        console.error('Failed to load API keys:', error);
+        console.error('Failed to load dashboard data:', error);
 
         setError(
           error instanceof Error
             ? error.message
-            : 'Failed to load API keys'
+            : 'Failed to load your API access'
         );
       } finally {
         setLoading(false);
       }
     };
 
-    loadApiKeys();
+    loadDashboardData();
   }, []);
+
+  // ==========================================================
+  // Generate API Key
+  // ==========================================================
+
+  const handleGenerateKey = async (apiId: string) => {
+    try {
+      setGeneratingApiId(apiId);
+      setGenerateError(null);
+
+      const newKey = await generateApiKey(apiId);
+
+      setKeysByApiId((prev) => ({
+        ...prev,
+        [apiId]: newKey,
+      }));
+
+      setAccessibleApis((prev) =>
+        prev.map((api) =>
+          api.id === apiId
+            ? {
+                ...api,
+                hasApiKey: true,
+                apiKey: {
+                  id: newKey.id,
+                  createdAt: newKey.createdAt,
+                },
+              }
+            : api
+        )
+      );
+    } catch (error) {
+      console.error('Failed to generate API key:', error);
+
+      setGenerateError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate API key'
+      );
+    } finally {
+      setGeneratingApiId(null);
+    }
+  };
 
   // ==========================================================
   // Copy API Key
   // ==========================================================
 
-  const handleCopyKey = async (
-    key: string,
-    keyId: string
-  ) => {
+  const handleCopyKey = async (key: string, keyId: string) => {
     try {
       await navigator.clipboard.writeText(key);
 
@@ -84,6 +149,19 @@ const Dashboard = () => {
       console.error('Failed to copy API key:', error);
     }
   };
+
+  // ==========================================================
+  // Derived counts
+  // ==========================================================
+
+  // "Active APIs" reflects everything granted through an active
+  // subscription, regardless of whether a key has been generated.
+  const activeApisCount = accessibleApis.length;
+
+  // "API Keys" reflects only keys that actually exist.
+  const generatedKeysCount = accessibleApis.filter(
+    (api) => api.hasApiKey
+  ).length;
 
   // ==========================================================
   // Render
@@ -174,7 +252,7 @@ const Dashboard = () => {
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-6">
 
-          {/* Active APIs */}
+          {/* Active APIs (from active subscriptions) */}
 
           <div className="bg-white border border-slate-200 rounded-xl p-6">
 
@@ -187,7 +265,7 @@ const Dashboard = () => {
                 </p>
 
                 <p className="mt-3 text-3xl font-bold text-slate-900 tracking-tight">
-                  {apiKeys.length}
+                  {activeApisCount}
                 </p>
 
               </div>
@@ -207,7 +285,7 @@ const Dashboard = () => {
           </div>
 
 
-          {/* API Keys */}
+          {/* API Keys (only ones actually generated) */}
 
           <div className="bg-white border border-slate-200 rounded-xl p-6">
 
@@ -220,7 +298,7 @@ const Dashboard = () => {
                 </p>
 
                 <p className="mt-3 text-3xl font-bold text-slate-900 tracking-tight">
-                  {apiKeys.length}
+                  {generatedKeysCount}
                 </p>
 
               </div>
@@ -253,7 +331,7 @@ const Dashboard = () => {
                 </p>
 
                 <p className="mt-3 text-3xl font-bold text-slate-900 tracking-tight">
-                  {apiKeys.length > 0 ? 'Active' : 'None'}
+                  {activeApisCount > 0 ? 'Active' : 'None'}
                 </p>
 
               </div>
@@ -315,6 +393,21 @@ const Dashboard = () => {
           </div>
 
 
+          {/* Inline generate-key error, if any */}
+
+          {generateError && (
+
+            <div className="px-7 py-3 bg-rose-50 border-b border-rose-100">
+
+              <p className="text-xs font-medium text-rose-600">
+                {generateError}
+              </p>
+
+            </div>
+
+          )}
+
+
           {/* ==================================================
               API List
           ================================================== */}
@@ -361,11 +454,11 @@ const Dashboard = () => {
             )}
 
 
-            {/* No APIs */}
+            {/* No accessible APIs */}
 
             {!loading &&
               !error &&
-              apiKeys.length === 0 && (
+              accessibleApis.length === 0 && (
 
                 <div className="px-7 py-12 text-center">
 
@@ -384,18 +477,22 @@ const Dashboard = () => {
               )}
 
 
-            {/* Real APIs */}
+            {/* Accessible APIs */}
 
             {!loading &&
               !error &&
-              apiKeys.map((apiKey) => {
+              accessibleApis.map((api) => {
 
-                const isCopied = copiedKeyId === apiKey.id;
+                const generatedKey = keysByApiId[api.id];
+
+                const isCopied = copiedKeyId === api.id;
+
+                const isGenerating = generatingApiId === api.id;
 
                 return (
 
                   <div
-                    key={apiKey.id}
+                    key={api.id}
                     className="px-7 py-6 hover:bg-slate-50/50 transition-colors"
                   >
 
@@ -424,7 +521,7 @@ const Dashboard = () => {
                           <div className="flex flex-wrap items-center gap-2.5">
 
                             <h3 className="font-semibold text-slate-900">
-                              {apiKey.api.name}
+                              {api.name}
                             </h3>
 
 
@@ -432,12 +529,12 @@ const Dashboard = () => {
 
                             <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded">
 
-                              {apiKey.api.category}
+                              {api.category}
 
                             </span>
 
 
-                            {/* Status */}
+                            {/* Subscription access status */}
 
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded">
 
@@ -450,7 +547,7 @@ const Dashboard = () => {
                           </div>
 
 
-                          {/* Endpoint + API Key */}
+                          {/* Endpoint + Key / Generate */}
 
                           <div className="mt-3 flex flex-wrap items-center gap-3">
 
@@ -459,69 +556,99 @@ const Dashboard = () => {
 
                             <span className="font-mono text-xs bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200 text-slate-500">
 
-                              {apiKey.api.endpoint}
+                              {api.endpoint}
 
                             </span>
 
 
-                            {/* API Key */}
+                            {/* Key generated: show masked key + copy */}
 
-                            <div className="inline-flex items-center gap-2 text-xs font-mono bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200">
+                            {api.hasApiKey && generatedKey ? (
 
-                              <KeyRound className="h-3 w-3 text-slate-400" />
+                              <div className="inline-flex items-center gap-2 text-xs font-mono bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200">
 
-                              <span>
-                                {apiKey.key.substring(0, 8)}••••••••
-                              </span>
+                                <KeyRound className="h-3 w-3 text-slate-400" />
+
+                                <span>
+                                  {generatedKey.key.substring(0, 8)}••••••••
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCopyKey(generatedKey.key, api.id)
+                                  }
+                                  className="ml-1 inline-flex items-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                                  title="Copy API key"
+                                >
+
+                                  {isCopied ? (
+                                    <>
+                                      <Check className="h-3.5 w-3.5 text-emerald-500" />
+
+                                      <span className="font-sans text-xs text-emerald-600">
+                                        Copied
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="h-3.5 w-3.5" />
+
+                                      <span className="font-sans text-xs">
+                                        Copy
+                                      </span>
+                                    </>
+                                  )}
+
+                                </button>
+
+                              </div>
+
+                            ) : (
+
+                              /* No key yet: show Generate API Key */
 
                               <button
                                 type="button"
-                                onClick={() =>
-                                  handleCopyKey(
-                                    apiKey.key,
-                                    apiKey.id
-                                  )
-                                }
-                                className="ml-1 inline-flex items-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
-                                title="Copy API key"
+                                onClick={() => handleGenerateKey(api.id)}
+                                disabled={isGenerating}
+                                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                               >
 
-                                {isCopied ? (
+                                {isGenerating ? (
                                   <>
-                                    <Check className="h-3.5 w-3.5 text-emerald-500" />
-
-                                    <span className="font-sans text-xs text-emerald-600">
-                                      Copied
-                                    </span>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    Generating...
                                   </>
                                 ) : (
                                   <>
-                                    <Copy className="h-3.5 w-3.5" />
-
-                                    <span className="font-sans text-xs">
-                                      Copy
-                                    </span>
+                                    <KeyRound className="h-3.5 w-3.5" />
+                                    Generate API Key
                                   </>
                                 )}
 
                               </button>
 
-                            </div>
+                            )}
 
                           </div>
 
 
                           {/* Created Date */}
 
-                          <p className="mt-2 text-xs text-slate-400">
+                          {api.hasApiKey && generatedKey && (
 
-                            API key created{' '}
+                            <p className="mt-2 text-xs text-slate-400">
 
-                            {new Date(
-                              apiKey.createdAt
-                            ).toLocaleDateString()}
+                              API key created{' '}
 
-                          </p>
+                              {new Date(
+                                generatedKey.createdAt
+                              ).toLocaleDateString()}
+
+                            </p>
+
+                          )}
 
                         </div>
 
@@ -537,25 +664,20 @@ const Dashboard = () => {
                         <div>
 
                           <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                            Status
+                            Key Status
                           </p>
 
-                          <p className="mt-1 text-sm font-medium text-emerald-600">
-                            Active
+                          <p
+                            className={`mt-1 text-sm font-medium ${
+                              api.hasApiKey
+                                ? 'text-emerald-600'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            {api.hasApiKey ? 'Generated' : 'Not generated'}
                           </p>
 
                         </div>
-
-
-                        <button
-                          type="button"
-                          className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-                        >
-
-                          <MoreHorizontal className="h-4 w-4 text-slate-400" />
-
-                        </button>
-
                       </div>
 
                     </div>

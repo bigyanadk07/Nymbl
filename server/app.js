@@ -16,7 +16,11 @@ const paymentRoutes = require('./routes/payment.routes');
 
 // Import the marketplace
 const helloWorldRoutes = require('./market/helloworld/helloworld.routes');
-
+const greetingRoutes = require('./market/greeting/greeting.routes')
+const arsenalRoutes = require('./market/arsenal/arsenal.routes')
+const analyserRoutes = require('./market/analyser/analyser.routes')
+const passwordRoutes = require('./market/password-analyser/password.routes')
+const urlRoutes = require('./market/url-analyser/url.routes')
 
 // Create Express app
 const app = express();
@@ -49,7 +53,38 @@ app.use(
   helloWorldRoutes
 );
 
+// Greeting API
+app.use(
+  '/api/v1/greeting',
+  apiGateway,
+  greetingRoutes
+);
 
+// Arsenal API
+app.use(
+  '/api/v1/arsenal',
+  apiGateway,
+  arsenalRoutes
+);
+
+// Analyser API
+app.use(
+  '/api/v1/analyser',
+  apiGateway,
+  analyserRoutes
+);
+// Url API
+app.use(
+  '/api/v1/url-analyser',
+  apiGateway,
+  urlRoutes
+);
+// Analyser API
+app.use(
+  '/api/v1/password-analyser',
+  apiGateway,
+  passwordRoutes
+);
 // API MARKETPLACE END
 
 

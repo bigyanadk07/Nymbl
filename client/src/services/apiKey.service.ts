@@ -41,6 +41,11 @@ export interface AccessibleApisResponse {
 
 // ============================================================
 // Get APIs accessible through active subscriptions
+//
+// This is the PRIMARY source of truth for the Dashboard.
+// It returns every API the user currently has access to via
+// an active subscription, regardless of whether an API key
+// has been generated for it yet (hasApiKey: false/true).
 // ============================================================
 
 export const getAccessibleApis = async (): Promise<AccessibleApi[]> => {
@@ -74,6 +79,10 @@ export const getAccessibleApis = async (): Promise<AccessibleApi[]> => {
 
 // ============================================================
 // Get User API Keys
+//
+// Only returns APIs that already have a generated key. Used
+// alongside getAccessibleApis() to obtain the actual raw key
+// value (getAccessibleApis() intentionally does not expose it).
 // ============================================================
 
 export const getApiKeys = async (): Promise<ApiKey[]> => {

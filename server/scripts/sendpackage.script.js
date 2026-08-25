@@ -23,47 +23,67 @@ const sampleApis = [
   },
 
   {
-    name: 'Minecraft API',
-    description: 'Access Minecraft server status, player stats, and skins.',
-    usageLimit: 49000,
-    pricePerRequest: 0.001,
-    endpoint: '/api/minecraft',
-    category: 'Gaming'
+    name: 'Greeting API',
+    description: 'Returns a time-of-day greeting (Good Morning/Afternoon/Evening/Night).',
+    usageLimit: 1000,
+    pricePerRequest: 0,
+    endpoint: '/api/v1/greeting',
+    category: 'Utility'
   },
 
   {
-    name: 'Valorant API',
-    description: 'Fetch Valorant player profiles, match history, and stats.',
-    usageLimit: 123456,
-    pricePerRequest: 0.002,
-    endpoint: '/api/valorant',
-    category: 'Gaming'
+    name: 'Arsenal API',
+    description: 'Returns Arsenal\'s 2025/26 league-winning status.',
+    usageLimit: 1000,
+    pricePerRequest: 0,
+    endpoint: '/api/v1/arsenal',
+    category: 'Sports'
   },
-
   {
-    name: 'REPO API',
-    description: 'Retrieve data from the REPO gaming servers and leaderboards.',
-    usageLimit: 69000,
-    pricePerRequest: 0.0015,
-    endpoint: '/api/repo',
-    category: 'Gaming'
-  }
+  name: 'Text Analyser API',
+  description: 'Analyzes text and returns character, word, sentence, and paragraph statistics, plus estimated reading time.',
+  usageLimit: 500,
+  pricePerRequest: 0,
+  endpoint: '/api/v1/analyse',
+  category: 'Utility'
+},
+  {
+  name: 'URL Analyser API',
+  description: 'Validates that the provided value is a valid URL and returns a structured analysis.',
+  usageLimit: 500,
+  pricePerRequest: 0,
+  endpoint: '/api/v1/url-analyser',
+  category: 'Utility'
+},
+  {
+  name: 'Password Analyser API',
+  description: 'Analyzes & accept a password through a POST request and analyzes its strength without storing the password anywhere.',
+  usageLimit: 500,
+  pricePerRequest: 0,
+  endpoint: '/api/v1/password-analyser',
+  category: 'Utility'
+}
 ];
 
 
 // ============================================================
 // PACKAGE DEFINITIONS
+//
+// One package per API — `apiNames` ties each package to
+// exactly one underlying API, so packages never overlap.
 // ============================================================
 
 const packageDefinitions = [
   {
-    name: 'Basic',
-    description: 'Basic API access with limited requests',
-    price: 29.99,
+    name: 'Hello World',
+    description: 'Access to the Hello World API',
+    price: 100,
     billingCycle: 'monthly',
 
+    apiNames: ['Hello World API'],
+
     features: [
-      '100,000 API calls per month',
+      '1,000 API calls per month',
       'Basic rate limiting',
       'Email support',
       'API documentation access'
@@ -73,74 +93,93 @@ const packageDefinitions = [
   },
 
   {
-    name: 'Pro',
-    description: 'Professional API access with higher limits',
-    price: 99.99,
+    name: 'Greeting',
+    description: 'Access to the Greeting API',
+    price: 200,
     billingCycle: 'monthly',
 
+    apiNames: ['Greeting API'],
+
     features: [
-      '500,000 API calls per month',
-      'Advanced rate limiting',
-      'Priority email support',
-      'API documentation access',
-      'Analytics dashboard'
+      '1,000 API calls per month',
+      'Basic rate limiting',
+      'Email support',
+      'API documentation access'
     ],
 
     isPopular: true
   },
 
   {
-    name: 'Enterprise',
-    description: 'Enterprise-grade API access with unlimited requests',
-    price: 249.99,
+    name: 'Arsenal',
+    description: 'Access to the Arsenal API',
+    price: 150,
     billingCycle: 'monthly',
 
-    features: [
-      'Unlimited API calls',
-      'Custom rate limiting',
-      'Dedicated support',
-      'API documentation access',
-      'Advanced analytics dashboard',
-      'SLA guarantee',
-      'Custom integration support'
-    ],
-
-    isPopular: false
-  },
-
-  {
-    name: 'Starter Annual',
-    description: 'Annual billing for Basic package with discount',
-    price: 299.99,
-    billingCycle: 'yearly',
+    apiNames: ['Arsenal API'],
 
     features: [
-      '100,000 API calls per month',
+      '1,000 API calls per month',
       'Basic rate limiting',
       'Email support',
-      'API documentation access',
-      '2 months free compared to monthly billing'
+      'API documentation access'
     ],
 
     isPopular: false
   },
-
+  
   {
-    name: 'Pro Annual',
-    description: 'Annual billing for Pro package with discount',
-    price: 999.99,
-    billingCycle: 'yearly',
+    name: 'Text Analyser',
+    description: 'Access to the Text Analyser API',
+    price: 200,
+    billingCycle: 'monthly',
+
+    apiNames: ['Text Analyser API'],
 
     features: [
-      '500,000 API calls per month',
-      'Advanced rate limiting',
-      'Priority email support',
-      'API documentation access',
-      'Analytics dashboard',
-      '2 months free compared to monthly billing'
+      '500 API calls per month',
+      'Basic rate limiting',
+      'Email support',
+      'API documentation access'
+    ],
+
+    isPopular: true
+  },
+  
+  {
+    name: 'URL Analyser',
+    description: 'Access to the URL Analyser API',
+    price: 100,
+    billingCycle: 'monthly',
+
+    apiNames: ['URL Analyser API'],
+
+    features: [
+      '500 API calls per month',
+      'Basic rate limiting',
+      'Email support',
+      'API documentation access'
     ],
 
     isPopular: false
+  },
+  
+  {
+    name: 'Password Analyser',
+    description: 'Access to the Password Analyser API',
+    price: 100,
+    billingCycle: 'monthly',
+
+    apiNames: ['Password Analyser API'],
+
+    features: [
+      '500 API calls per month',
+      'Basic rate limiting',
+      'Email support',
+      'API documentation access'
+    ],
+
+    isPopular: true
   }
 ];
 
@@ -174,7 +213,9 @@ async function seedPackages() {
     console.log('\n🔍 Checking marketplace APIs...');
 
 
-    const apiDocuments = [];
+    // Map of API name -> Mongo document, used below to resolve
+    // each package's `apiNames` into actual API ObjectIds.
+    const apiByName = {};
 
 
     for (const apiDefinition of sampleApis) {
@@ -191,7 +232,7 @@ async function seedPackages() {
           `⏭️ API already exists: ${existingApi.name}`
         );
 
-        apiDocuments.push(existingApi);
+        apiByName[existingApi.name] = existingApi;
 
         continue;
       }
@@ -206,13 +247,13 @@ async function seedPackages() {
       );
 
 
-      apiDocuments.push(newApi);
+      apiByName[newApi.name] = newApi;
 
     }
 
 
     console.log(
-      `\n✅ Marketplace API check complete. ${apiDocuments.length} APIs available.`
+      `\n✅ Marketplace API check complete. ${Object.keys(apiByName).length} APIs available.`
     );
 
 
@@ -223,10 +264,31 @@ async function seedPackages() {
     console.log('\n🔍 Checking marketplace packages...');
 
 
-    const apiIds = apiDocuments.map(api => api._id);
-
-
     for (const packageDefinition of packageDefinitions) {
+
+      const { apiNames, ...packageFields } = packageDefinition;
+
+
+      // Resolve this package's named APIs to their ObjectIds.
+      const resolvedApiIds = [];
+
+      for (const apiName of apiNames) {
+
+        const apiDoc = apiByName[apiName];
+
+        if (!apiDoc) {
+
+          console.warn(
+            `   ⚠️ API "${apiName}" not found — skipping for package "${packageDefinition.name}"`
+          );
+
+          continue;
+        }
+
+        resolvedApiIds.push(apiDoc._id);
+
+      }
+
 
       const existingPackage = await Package.findOne({
         name: packageDefinition.name,
@@ -242,36 +304,34 @@ async function seedPackages() {
 
 
         // ----------------------------------------------------
-        // Add any missing APIs to the existing package
+        // Sync this package's APIs to exactly match `apiNames`.
         // ----------------------------------------------------
 
-        const existingApiIds =
-          existingPackage.apis.map(
-            apiId => apiId.toString()
+        const currentApiIds =
+          existingPackage.apis
+            .map(apiId => apiId.toString())
+            .sort();
+
+        const targetApiIds =
+          resolvedApiIds
+            .map(apiId => apiId.toString())
+            .sort();
+
+        const isSame =
+          currentApiIds.length === targetApiIds.length &&
+          currentApiIds.every(
+            (id, index) => id === targetApiIds[index]
           );
 
 
-        const missingApiIds =
-          apiIds.filter(
-            apiId =>
-              !existingApiIds.includes(
-                apiId.toString()
-              )
-          );
+        if (!isSame) {
 
-
-        if (missingApiIds.length > 0) {
-
-          existingPackage.apis.push(
-            ...missingApiIds
-          );
-
+          existingPackage.apis = resolvedApiIds;
 
           await existingPackage.save();
 
-
           console.log(
-            `   ↳ Added ${missingApiIds.length} missing API(s) to ${existingPackage.name}`
+            `   ↳ Updated APIs for ${existingPackage.name} → [${apiNames.join(', ')}]`
           );
 
         }
@@ -288,16 +348,57 @@ async function seedPackages() {
 
       const newPackage = await Package.create({
 
-        ...packageDefinition,
+        ...packageFields,
 
-        apis: apiIds
+        apis: resolvedApiIds
 
       });
 
 
       console.log(
-        `✅ Package created: ${newPackage.name}`
+        `✅ Package created: ${newPackage.name} → [${apiNames.join(', ')}]`
       );
+
+    }
+
+
+    // ========================================================
+    // REMOVE OLD PACKAGES NOT IN THE CURRENT DEFINITIONS
+    //
+    // Cleans up leftovers from the previous multi-tier model
+    // (Basic, Pro, Enterprise, Starter Annual, Pro Annual).
+    //
+    // NOTE: this only deletes the Package documents themselves.
+    // Any existing Subscription/Payment records referencing
+    // these packageIds are left untouched — since this is a
+    // dev environment, decide separately whether you want to
+    // also clean those up, or leave them as historical records.
+    // ========================================================
+
+    console.log('\n🔍 Checking for packages to remove...');
+
+
+    const currentPackageKeys = packageDefinitions.map(
+      p => `${p.name}::${p.billingCycle}`
+    );
+
+
+    const allPackages = await Package.find({});
+
+
+    for (const pkg of allPackages) {
+
+      const key = `${pkg.name}::${pkg.billingCycle}`;
+
+      if (!currentPackageKeys.includes(key)) {
+
+        await Package.deleteOne({ _id: pkg._id });
+
+        console.log(
+          `🗑️ Removed old package: ${pkg.name} (${pkg.billingCycle})`
+        );
+
+      }
 
     }
 

@@ -654,10 +654,17 @@ ESEWA_FAILURE_URL=
 -   MongoDB
 -   Mongoose
 -   JWT-based authentication
+-   REST API
+-   Redis
 
 ## Payment
 
 -   eSewa Test Environment
+
+## Infrastructure / Supporting Service
+-   Redis - Rate Limiting
+-   MongoDB Compass - Persistent Application Data
+-   Ngrok - Exposing the local backend for eSewa callbacks
 
 ## Development / Testing
 

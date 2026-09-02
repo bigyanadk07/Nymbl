@@ -621,6 +621,28 @@ subscriptions, payments, API access, rate limiting, and usage tracking.
 
 ------------------------------------------------------------------------
 
+# Backend .env Structure (To run it locally)
+
+# Server
+PORT=5000
+
+# Database
+MONGO_URI=
+
+# Authentication
+JWT_SECRET=
+
+# eSewa
+ESEWA_BASE_URL=
+ESEWA_PRODUCT_CODE=
+ESEWA_SECRET_KEY=
+
+# eSewa Callback URLs
+ESEWA_SUCCESS_URL=
+ESEWA_FAILURE_URL=
+
+------------------------------------------------------------------------
+
 # Technology Stack
 
 ## Frontend
@@ -638,40 +660,22 @@ subscriptions, payments, API access, rate limiting, and usage tracking.
 -   MongoDB
 -   Mongoose
 -   JWT-based authentication
+-   REST API
+-   Redis
 
 ## Payment
 
 -   eSewa Test Environment
 
+## Infrastructure / Supporting Service
+-   Redis - Rate Limiting
+-   MongoDB Compass - Persistent Application Data
+-   Ngrok - Exposing the local backend for eSewa callbacks
+
 ## Development / Testing
 
 -   Postman
 -   ngrok
-
-------------------------------------------------------------------------
-
-# Security Notes
-
-This project is currently an **MVP/development project** and should not
-be considered production-ready without additional security hardening.
-
-Important considerations:
-
--   Never commit `.env` files.
--   Never expose production secrets in the repository.
--   Never reuse demonstration passwords for real accounts.
--   API keys should be treated as credentials.
--   Payment credentials shown in this README are eSewa test credentials
-    and must not be treated as production credentials.
--   Production deployments should use HTTPS.
--   Authentication and authorization should be thoroughly tested before
-    production use.
--   Rate limiting should be configured appropriately for production
-    workloads.
--   API keys should ideally be stored securely and revocable.
--   Payment callbacks should always be verified server-side.
--   Administrative functionality should use strict role-based
-    authorization.
 
 ------------------------------------------------------------------------
 
@@ -973,6 +977,4 @@ documentation, and eventually Nymbl 2.0 development.**
 ------------------------------------------------------------------------
 
 ## License
-
-Add the project's intended license here if/when the repository is
-publicly released.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

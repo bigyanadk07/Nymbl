@@ -10,6 +10,12 @@ tracking.
 > **Version:** 1.0.0 / MVP\
 > **Payment Environment:** eSewa Test Environment
 
+
+
+## Demo
+
+![Nymbl Demo](./client/src/demo/Demo.gif)
+
 ------------------------------------------------------------------------
 
 ## Table of Contents

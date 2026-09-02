@@ -117,7 +117,7 @@ const Home: React.FC = () => {
                     Welcome back, <span className="font-semibold text-[#14161F]">{user?.name}</span>
                   </p>
                   <Link
-                    to="/subscriptions"
+                    to="/dashboard/subscriptions"
                     className="mt-5 group inline-flex items-center gap-2 bg-[#14161F] text-white px-6 py-3 text-sm font-medium rounded-md hover:bg-[#272A36] transition-colors"
                   >
                     View your subscription

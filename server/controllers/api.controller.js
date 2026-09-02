@@ -49,53 +49,62 @@
   // Get user's API keys
   exports.getUserApiKeys = async (req, res) => {
     try {
-      // First, get the user's active subscriptions
       const subscriptions = await Subscription.find({
         userId: req.user._id,
         status: 'active'
       }).populate({
         path: 'packageId',
-        populate: {
-          path: 'apis'
-        }
+        populate: { path: 'apis' }
       });
-      
-      // Extract all API IDs the user has access to through their subscriptions
+
+      // Which APIs the user may access through active subscriptions
       const accessibleApiIds = new Set();
+
       subscriptions.forEach(subscription => {
+        // Guard: package may have been deleted -> populate returns null
+        if (!subscription.packageId || !Array.isArray(subscription.packageId.apis)) {
+          return;
+        }
+
         subscription.packageId.apis.forEach(api => {
-          accessibleApiIds.add(api._id.toString());
+          if (api) {
+            accessibleApiIds.add(api._id.toString());
+          }
         });
       });
-      
-      // Find the user's API keys
+
       const apiKeys = await ApiKey.find({
         userId: req.user._id,
         isActive: true
       }).populate('apiId');
-      
-      // Filter to only include keys for APIs the user has access to
-      const validApiKeys = apiKeys.filter(key => 
-        accessibleApiIds.has(key.apiId._id.toString())
+
+      // Guard `key.apiId` too: a deleted API populates to null and would throw
+      const validApiKeys = apiKeys.filter(key =>
+        key.apiId && accessibleApiIds.has(key.apiId._id.toString())
       );
-      
-      res.json(validApiKeys.map(key => ({
-        id: key._id,
-        key: key.key,
-        api: {
-          id: key.apiId._id,
-          name: key.apiId.name,
-          endpoint: key.apiId.endpoint,
-          category: key.apiId.category
-        },
-        createdAt: key.createdAt
-      })));
+
+      return res.json({
+        success: true,
+        data: validApiKeys.map(key => ({
+          id: key._id,
+          key: key.key,
+          apiId: key.apiId._id,          // flat apiId — the frontend indexes by this
+          userId: key.userId,
+          isActive: key.isActive,
+          createdAt: key.createdAt,
+          api: {
+            id: key.apiId._id,
+            name: key.apiId.name,
+            endpoint: key.apiId.endpoint,
+            category: key.apiId.category
+          }
+        }))
+      });
     } catch (err) {
       console.error('Get API keys error:', err);
-      res.status(500).json({ message: 'Server error' });
+      return res.status(500).json({ success: false, message: 'Server error' });
     }
   };
-
   // Get APIs accessible through user's active subscriptions
 exports.getAccessibleApis = async (req, res) => {
   try {
@@ -183,86 +192,92 @@ exports.getAccessibleApis = async (req, res) => {
   exports.generateApiKey = async (req, res) => {
     try {
       const { apiId } = req.body;
-      
+
       if (!apiId) {
-        return res.status(400).json({ message: 'API ID is required' });
+        return res.status(400).json({ success: false, message: 'API ID is required' });
       }
-      
-      // Check if the API exists
+
       const api = await Api.findById(apiId);
-      
+
       if (!api) {
-        return res.status(404).json({ message: 'API not found' });
+        return res.status(404).json({ success: false, message: 'API not found' });
       }
-      
-      // Check if the user has an active subscription that includes this API
+
       const subscriptions = await Subscription.find({
         userId: req.user._id,
         status: 'active'
       }).populate({
         path: 'packageId',
-        populate: {
-          path: 'apis'
-        }
+        populate: { path: 'apis' }
       });
-      
+
       let hasAccess = false;
+
       subscriptions.forEach(subscription => {
+        if (!subscription.packageId || !Array.isArray(subscription.packageId.apis)) {
+          return;
+        }
+
         subscription.packageId.apis.forEach(subscriptionApi => {
-          if (subscriptionApi._id.toString() === apiId) {
+          if (subscriptionApi && subscriptionApi._id.toString() === apiId.toString()) {
             hasAccess = true;
           }
         });
       });
-      
+
       if (!hasAccess) {
-        return res.status(403).json({ 
-          message: 'You do not have an active subscription that includes this API' 
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have an active subscription that includes this API'
         });
       }
-      
-      // Check if user already has a key for this API
+
+      // Single shaper so both branches return an identical payload
+      const shape = (doc) => ({
+        id: doc._id,
+        key: doc.key,
+        apiId: api._id,
+        userId: doc.userId,
+        isActive: doc.isActive,
+        createdAt: doc.createdAt,
+        api: {
+          id: api._id,
+          name: api.name,
+          endpoint: api.endpoint,
+          category: api.category
+        }
+      });
+
       const existingKey = await ApiKey.findOne({
         userId: req.user._id,
         apiId,
         isActive: true
       });
-      
+
       if (existingKey) {
         return res.json({
-          id: existingKey._id,
-          key: existingKey.key,
-          api: {
-            id: api._id,
-            name: api.name,
-            endpoint: api.endpoint
-          },
-          createdAt: existingKey.createdAt
+          success: true,
+          message: 'Existing API key returned',
+          apiKey: shape(existingKey)
         });
       }
-      
-      // Generate a new API key
+
       const apiKey = new ApiKey({
         userId: req.user._id,
         apiId,
         key: apiKeyGenerator.generateApiKey()
       });
-      
+
       await apiKey.save();
-      
-      res.json({
-        id: apiKey._id,
-        key: apiKey.key,
-        api: {
-          id: api._id,
-          name: api.name,
-          endpoint: api.endpoint
-        },
-        createdAt: apiKey.createdAt
+
+      return res.status(201).json({
+        success: true,
+        message: 'API key generated successfully',
+        apiKey: shape(apiKey)
       });
     } catch (err) {
       console.error('Generate API key error:', err);
-      res.status(500).json({ message: 'Server error' });
+      return res.status(500).json({ success: false, message: 'Server error' });
     }
   };
 

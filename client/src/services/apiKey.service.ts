@@ -1,184 +1,162 @@
 const API_URL = 'http://localhost:5000';
 
-// ============================================================
-// Types
-// ============================================================
-
-export interface ApiKeyApi {
-  id: string;
-  name: string;
-  endpoint: string;
-  category: string;
-}
-
 export interface ApiKey {
   id: string;
   key: string;
-  api: ApiKeyApi;
+  apiId: string;
+  userId: string;
+  isActive: boolean;
   createdAt: string;
+  updatedAt?: string;
+  expiresAt?: string | null;
 }
 
-export interface AccessibleApi {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  endpoint: string;
-  usageLimit: number;
-
-  hasApiKey: boolean;
-
-  apiKey: {
-    id: string;
-    createdAt: string;
-  } | null;
-}
-
-export interface AccessibleApisResponse {
+export interface GenerateApiKeyResponse {
   success: boolean;
-  apis: AccessibleApi[];
+  message?: string;
+  apiKey?: ApiKey;
 }
 
-// ============================================================
-// Get APIs accessible through active subscriptions
-//
-// This is the PRIMARY source of truth for the Dashboard.
-// It returns every API the user currently has access to via
-// an active subscription, regardless of whether an API key
-// has been generated for it yet (hasApiKey: false/true).
-// ============================================================
+export interface ApiKeysResponse {
+  success: boolean;
+  data?: ApiKey[];
+  message?: string;
+}
 
-export const getAccessibleApis = async (): Promise<AccessibleApi[]> => {
+export interface RevokeApiKeyResponse {
+  success: boolean;
+  message?: string;
+}
+
+export interface UpdateApiKeyStatusResponse {
+  success: boolean;
+  message?: string;
+  apiKey?: ApiKey;
+}
+
+const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
 
-  if (!token) {
-    throw new Error('Authentication token not found');
-  }
+  return {
+    'Content-Type': 'application/json',
 
-  const response = await fetch(`${API_URL}/apis/accessible`, {
-    method: 'GET',
+    ...(token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {}),
+  };
+};
 
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
+
+// ============================================================
+// GET USER API KEYS
+// ============================================================
+
+export const getApiKeys = async (): Promise<ApiKeysResponse> => {
+  const response = await fetch(
+    `${API_URL}/apis/keys`,
+    {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await response.json();
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-
     throw new Error(
-      errorData?.message || 'Failed to fetch accessible APIs'
+      data.message || 'Failed to fetch API keys'
     );
   }
 
-  const data: AccessibleApisResponse = await response.json();
-
-  return data.apis;
+  return data;
 };
 
-// ============================================================
-// Get User API Keys
-//
-// Only returns APIs that already have a generated key. Used
-// alongside getAccessibleApis() to obtain the actual raw key
-// value (getAccessibleApis() intentionally does not expose it).
-// ============================================================
-
-export const getApiKeys = async (): Promise<ApiKey[]> => {
-  const token = localStorage.getItem('token');
-
-  if (!token) {
-    throw new Error('Authentication token not found');
-  }
-
-  const response = await fetch(`${API_URL}/apis/keys`, {
-    method: 'GET',
-
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-
-    throw new Error(
-      errorData?.message || 'Failed to fetch API keys'
-    );
-  }
-
-  return response.json();
-};
 
 // ============================================================
-// Generate API Key
+// GENERATE API KEY
 // ============================================================
 
 export const generateApiKey = async (
   apiId: string
-): Promise<ApiKey> => {
-  const token = localStorage.getItem('token');
-
-  if (!token) {
-    throw new Error('Authentication token not found');
-  }
-
-  const response = await fetch(`${API_URL}/apis/keys`, {
-    method: 'POST',
-
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-
-    body: JSON.stringify({
-      apiId,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-
-    throw new Error(
-      errorData?.message || 'Failed to generate API key'
-    );
-  }
-
-  return response.json();
-};
-
-// ============================================================
-// Revoke API Key
-// ============================================================
-
-export const revokeApiKey = async (
-  keyId: string
-): Promise<void> => {
-  const token = localStorage.getItem('token');
-
-  if (!token) {
-    throw new Error('Authentication token not found');
-  }
-
+): Promise<GenerateApiKeyResponse> => {
   const response = await fetch(
-    `${API_URL}/apis/keys/${keyId}`,
+    `${API_URL}/apis/keys`,
     {
-      method: 'DELETE',
-
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        apiId,
+      }),
     }
   );
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
+  const data = await response.json();
 
+  if (!response.ok) {
     throw new Error(
-      errorData?.message || 'Failed to revoke API key'
+      data.message || 'Failed to generate API key'
     );
   }
+
+  return data;
+};
+
+
+// ============================================================
+// REVOKE API KEY
+// ============================================================
+
+export const revokeApiKey = async (
+  apiKeyId: string
+): Promise<RevokeApiKeyResponse> => {
+  const response = await fetch(
+    `${API_URL}/apis/keys/${apiKeyId}`,
+    {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || 'Failed to revoke API key'
+    );
+  }
+
+  return data;
+};
+
+
+// ============================================================
+// ACTIVATE / DEACTIVATE API KEY
+// ============================================================
+
+export const updateApiKeyStatus = async (
+  apiKeyId: string,
+  isActive: boolean
+): Promise<UpdateApiKeyStatusResponse> => {
+  const response = await fetch(
+    `${API_URL}/apis/keys/${apiKeyId}/status`,
+    {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        isActive,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || 'Failed to update API key status'
+    );
+  }
+
+  return data;
 };

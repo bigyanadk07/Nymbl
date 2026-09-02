@@ -62,7 +62,7 @@ const Packages: React.FC = () => {
         {/* Top Navigation */}
         <div className="mb-10">
           <Link
-            to="/subscriptions"
+            to="/dashboard/subscriptions"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5B6270] hover:text-[#14161F] transition-colors"
           >
             <span aria-hidden="true">←</span>

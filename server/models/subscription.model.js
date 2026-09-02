@@ -3,15 +3,21 @@
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 
-
 const SubscriptionSchema =
   new mongoose.Schema({
+
+    // ============================================================
+    // IDENTIFIER
+    // ============================================================
 
     _id: {
       type: String,
       default: uuidv4
     },
 
+    // ============================================================
+    // USER
+    // ============================================================
 
     userId: {
       type: String,
@@ -20,6 +26,9 @@ const SubscriptionSchema =
       index: true
     },
 
+    // ============================================================
+    // PACKAGE
+    // ============================================================
 
     packageId: {
       type: String,
@@ -28,6 +37,9 @@ const SubscriptionSchema =
       index: true
     },
 
+    // ============================================================
+    // STATUS
+    // ============================================================
 
     status: {
       type: String,
@@ -47,30 +59,52 @@ const SubscriptionSchema =
       index: true
     },
 
+    // ============================================================
+    // SUBSCRIPTION PERIOD
+    // ============================================================
+    //
+    // These dates define the actual quota period.
+    //
+    // Example:
+    //
+    // currentPeriodStart:
+    // August 25
+    //
+    // currentPeriodEnd:
+    // September 25
+    //
+    // Usage for this subscription must be counted only
+    // between these dates.
+    //
+    // ============================================================
 
     currentPeriodStart: {
       type: Date,
       default: null
     },
 
-
     currentPeriodEnd: {
       type: Date,
       default: null
     },
 
+    // ============================================================
+    // PAYMENT DETAILS
+    // ============================================================
 
     paymentDetails: {
       type: Object,
       default: null
     },
 
+    // ============================================================
+    // TIMESTAMPS
+    // ============================================================
 
     createdAt: {
       type: Date,
       default: Date.now
     },
-
 
     updatedAt: {
       type: Date,
@@ -81,11 +115,21 @@ const SubscriptionSchema =
 
 
 // ============================================================
-// Compound index
+// INDEXES
 // ============================================================
 //
-// Makes looking up a user's subscription to a package faster.
+// Used heavily by the API Gateway when finding an active
+// subscription for a user.
 //
+// ============================================================
+
+SubscriptionSchema.index({
+  userId: 1,
+  status: 1
+});
+
+
+// Used when checking a particular package subscription.
 
 SubscriptionSchema.index({
   userId: 1,
@@ -94,16 +138,23 @@ SubscriptionSchema.index({
 });
 
 
+// Useful for subscription-period queries.
+
+SubscriptionSchema.index({
+  status: 1,
+  currentPeriodEnd: 1
+});
+
+
 // ============================================================
-// Automatically update updatedAt
+// AUTOMATIC UPDATED TIMESTAMP
 // ============================================================
 
 SubscriptionSchema.pre(
   'save',
   function (next) {
 
-    this.updatedAt =
-      new Date();
+    this.updatedAt = new Date();
 
     next();
 

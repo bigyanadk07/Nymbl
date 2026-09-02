@@ -1,691 +1,560 @@
-import { useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import {
-  ArrowUpRight,
-  Check,
-  CircleDot,
-  Copy,
-  KeyRound,
-  Loader2,
-  Server,
+  Activity,
+  Gauge,
+  TrendingUp,
   XCircle,
+  Zap,
+  Layers,
 } from 'lucide-react';
 
-import { Link } from 'react-router-dom';
+import StatCard from './StatCard';
 
 import {
-  getAccessibleApis,
-  getApiKeys,
-  generateApiKey,
-  type AccessibleApi,
-  type ApiKey,
-} from '../../services/apiKey.service';
+  getUsageStats,
+} from '../../services/usage.service';
+
+import type {
+  UsageStats,
+} from '../../types/usage.types';
+
 
 // ============================================================
-// Dashboard
+// HELPERS
 // ============================================================
 
-const Dashboard = () => {
+const getPeriodDates = () => {
+
+  const now = new Date();
+
+  const start = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    1
+  );
+
+  const end = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1
+  );
+
+  return {
+    start: start.toISOString(),
+    end: end.toISOString(),
+  };
+
+};
+
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+
+const Dashboard: React.FC = () => {
+
+  const [usage, setUsage] =
+    useState<UsageStats | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+
   // ==========================================================
-  // State
-  // ==========================================================
-
-  // Primary data source: every API granted through an active
-  // subscription, whether or not a key has been generated yet.
-  const [accessibleApis, setAccessibleApis] = useState<AccessibleApi[]>([]);
-
-  // Actual raw key values, keyed by api.id. getAccessibleApis()
-  // intentionally does not expose the raw key, so this comes
-  // from getApiKeys() and is merged in for display/copy.
-  const [keysByApiId, setKeysByApiId] = useState<Record<string, ApiKey>>({});
-
-  const [loading, setLoading] = useState(true);
-
-  const [error, setError] = useState<string | null>(null);
-
-  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
-
-  const [generatingApiId, setGeneratingApiId] = useState<string | null>(null);
-
-  const [generateError, setGenerateError] = useState<string | null>(null);
-
-  // ==========================================================
-  // Fetch Accessible APIs + Keys
+  // FETCH DASHBOARD DATA
   // ==========================================================
 
   useEffect(() => {
-    const loadDashboardData = async () => {
+
+    const loadDashboard = async () => {
+
       try {
+
         setLoading(true);
         setError(null);
 
-        const [accessible, keys] = await Promise.all([
-          getAccessibleApis(),
-          getApiKeys(),
-        ]);
+        const {
+          start,
+          end,
+        } = getPeriodDates();
 
-        setAccessibleApis(accessible);
+        const response =
+          await getUsageStats(
+            start,
+            end
+          );
 
-        const map: Record<string, ApiKey> = {};
+        setUsage(response);
 
-        keys.forEach((key) => {
-          map[key.api.id] = key;
-        });
+      } catch (err) {
 
-        setKeysByApiId(map);
-      } catch (error) {
-        console.error('Failed to load dashboard data:', error);
+        console.error(
+          'Dashboard usage error:',
+          err
+        );
 
         setError(
-          error instanceof Error
-            ? error.message
-            : 'Failed to load your API access'
+          err instanceof Error
+            ? err.message
+            : 'Failed to load dashboard data'
         );
+
       } finally {
+
         setLoading(false);
+
       }
+
     };
 
-    loadDashboardData();
+    loadDashboard();
+
   }, []);
 
+
   // ==========================================================
-  // Generate API Key
+  // CALCULATED METRICS
   // ==========================================================
 
-  const handleGenerateKey = async (apiId: string) => {
-    try {
-      setGeneratingApiId(apiId);
-      setGenerateError(null);
+  const metrics = useMemo(() => {
 
-      const newKey = await generateApiKey(apiId);
+    if (!usage) {
 
-      setKeysByApiId((prev) => ({
-        ...prev,
-        [apiId]: newKey,
-      }));
+      return {
+        total: 0,
+        limit: 0,
+        remaining: 0,
+        usagePercentage: 0,
+        activeDays: 0,
+      };
 
-      setAccessibleApis((prev) =>
-        prev.map((api) =>
-          api.id === apiId
-            ? {
-                ...api,
-                hasApiKey: true,
-                apiKey: {
-                  id: newKey.id,
-                  createdAt: newKey.createdAt,
-                },
-              }
-            : api
-        )
-      );
-    } catch (error) {
-      console.error('Failed to generate API key:', error);
-
-      setGenerateError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to generate API key'
-      );
-    } finally {
-      setGeneratingApiId(null);
     }
-  };
+
+
+    const total =
+      usage.total || 0;
+
+    const limit =
+      usage.limit || 0;
+
+    const remaining =
+      Math.max(
+        usage.remaining ??
+        limit - total,
+        0
+      );
+
+
+    // --------------------------------------------------------
+    // USAGE PERCENTAGE
+    // --------------------------------------------------------
+
+    const usagePercentage =
+      limit > 0
+        ? Math.min(
+            Math.round(
+              (total / limit) * 100
+            ),
+            100
+          )
+        : 0;
+
+
+    // --------------------------------------------------------
+    // ACTIVE DAYS
+    // --------------------------------------------------------
+
+    const activeDays =
+      usage.breakdown?.filter(
+        item =>
+          item.count > 0
+      ).length || 0;
+
+
+    return {
+
+      total,
+
+      limit,
+
+      remaining,
+
+      usagePercentage,
+
+      activeDays,
+
+    };
+
+  }, [usage]);
+
 
   // ==========================================================
-  // Copy API Key
+  // LOADING STATE
   // ==========================================================
 
-  const handleCopyKey = async (key: string, keyId: string) => {
-    try {
-      await navigator.clipboard.writeText(key);
+  if (loading) {
 
-      setCopiedKeyId(keyId);
+    return (
 
-      setTimeout(() => {
-        setCopiedKeyId(null);
-      }, 2000);
-    } catch (error) {
-      console.error('Failed to copy API key:', error);
-    }
-  };
+      <div className="min-h-screen bg-[#FAFBFB] px-6 py-8 lg:px-10 lg:py-10">
 
-  // ==========================================================
-  // Derived counts
-  // ==========================================================
+        <div className="mx-auto max-w-7xl">
 
-  // "Active APIs" reflects everything granted through an active
-  // subscription, regardless of whether a key has been generated.
-  const activeApisCount = accessibleApis.length;
+          {/* Header */}
 
-  // "API Keys" reflects only keys that actually exist.
-  const generatedKeysCount = accessibleApis.filter(
-    (api) => api.hasApiKey
-  ).length;
+          <div className="mb-12">
 
-  // ==========================================================
-  // Render
-  // ==========================================================
+            <div className="h-8 w-64 animate-pulse rounded-lg bg-[#E8EAED]" />
 
-  return (
-    <div className="min-h-screen bg-slate-50/80 px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mt-3 h-4 w-96 animate-pulse rounded-lg bg-[#E8EAED]" />
 
-      <div className="mx-auto max-w-7xl">
-
-        {/* ==================================================
-            Back Navigation
-        ================================================== */}
-
-        <div className="mb-10">
-
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-slate-700 transition-colors group"
-          >
-
-            <span className="group-hover:-translate-x-0.5 transition-transform">
-              ←
-            </span>
-
-            Back Home
-
-          </Link>
-
-        </div>
+          </div>
 
 
-        {/* ==================================================
-            Header
-        ================================================== */}
+          {/* Stats */}
 
-        <div className="mb-10">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
 
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            {Array.from({
+              length: 3,
+            }).map((_, index) => (
 
-            <div>
+              <div
+                key={index}
+                className="h-40 animate-pulse rounded-2xl border border-[#E8EAED] bg-white shadow-sm"
+              />
 
-              <div className="flex items-center gap-3 mb-2">
+            ))}
 
-                <div className="h-8 w-1 bg-gradient-to-b from-indigo-500 to-cyan-500 rounded-full" />
-
-                <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                  Dashboard
-                </p>
-
-              </div>
-
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
-                API Overview
-              </h1>
-
-              <p className="mt-2 text-sm text-slate-500 max-w-2xl">
-                Manage your API access and credentials across your active subscriptions.
-              </p>
-
-            </div>
+          </div>
 
 
-            {/* System Status */}
+          {/* Main content */}
 
-            <div className="flex items-center gap-3">
+          <div className="mt-8 grid grid-cols-1 gap-6">
 
-              <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm">
-
-                <CircleDot className="h-3 w-3 text-emerald-500 fill-emerald-500" />
-
-                <span className="text-sm font-medium text-slate-700">
-                  All systems operational
-                </span>
-
-              </div>
-
-            </div>
+            <div className="h-[400px] animate-pulse rounded-2xl border border-[#E8EAED] bg-white shadow-sm" />
 
           </div>
 
         </div>
 
+      </div>
 
-        {/* ==================================================
-            API Access Summary
-        ================================================== */}
+    );
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-6">
+  }
 
-          {/* Active APIs (from active subscriptions) */}
 
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
+  // ==========================================================
+  // ERROR STATE
+  // ==========================================================
 
-            <div className="flex items-start justify-between">
+  if (error) {
+
+    return (
+
+      <div className="min-h-screen bg-[#FAFBFB] px-6 py-8 lg:px-10 lg:py-10">
+
+        <div className="mx-auto max-w-7xl">
+
+          <div className="rounded-2xl border border-[#FDE8E8] bg-[#FEF6F6] p-8 shadow-sm">
+
+            <div className="flex items-start gap-4">
+
+              <div className="rounded-full bg-[#FEE2E2] p-2">
+
+                <XCircle
+                  size={24}
+                  className="text-[#DC2626]"
+                />
+
+              </div>
 
               <div>
 
-                <p className="text-sm font-medium text-slate-400">
-                  Active APIs
-                </p>
-
-                <p className="mt-3 text-3xl font-bold text-slate-900 tracking-tight">
-                  {activeApisCount}
-                </p>
-
-              </div>
-
-              <div className="p-3 bg-cyan-50 rounded-lg">
-
-                <Server className="h-5 w-5 text-cyan-500" />
-
-              </div>
-
-            </div>
-
-            <p className="mt-4 text-xs text-slate-400">
-              APIs currently available through your subscriptions.
-            </p>
-
-          </div>
-
-
-          {/* API Keys (only ones actually generated) */}
-
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
-
-            <div className="flex items-start justify-between">
-
-              <div>
-
-                <p className="text-sm font-medium text-slate-400">
-                  API Keys
-                </p>
-
-                <p className="mt-3 text-3xl font-bold text-slate-900 tracking-tight">
-                  {generatedKeysCount}
-                </p>
-
-              </div>
-
-              <div className="p-3 bg-indigo-50 rounded-lg">
-
-                <KeyRound className="h-5 w-5 text-indigo-500" />
-
-              </div>
-
-            </div>
-
-            <p className="mt-4 text-xs text-slate-400">
-              Active credentials assigned to your account.
-            </p>
-
-          </div>
-
-
-          {/* API Access */}
-
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
-
-            <div className="flex items-start justify-between">
-
-              <div>
-
-                <p className="text-sm font-medium text-slate-400">
-                  API Access
-                </p>
-
-                <p className="mt-3 text-3xl font-bold text-slate-900 tracking-tight">
-                  {activeApisCount > 0 ? 'Active' : 'None'}
-                </p>
-
-              </div>
-
-              <div className="p-3 bg-emerald-50 rounded-lg">
-
-                <CircleDot className="h-5 w-5 text-emerald-500 fill-emerald-500" />
-
-              </div>
-
-            </div>
-
-            <p className="mt-4 text-xs text-slate-400">
-              Current API access status.
-            </p>
-
-          </div>
-
-        </div>
-
-
-        {/* ==================================================
-            Your APIs
-        ================================================== */}
-
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-
-          {/* Section Header */}
-
-          <div className="border-b border-slate-100 px-7 py-6">
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-              <div>
-
-                <h2 className="text-base font-semibold text-slate-900">
-                  Your APIs
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-400">
-                  APIs available through your active subscriptions.
-                </p>
-
-              </div>
-
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group"
-              >
-
-                Manage API access
-
-                <ArrowUpRight className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-
-              </button>
-
-            </div>
-
-          </div>
-
-
-          {/* Inline generate-key error, if any */}
-
-          {generateError && (
-
-            <div className="px-7 py-3 bg-rose-50 border-b border-rose-100">
-
-              <p className="text-xs font-medium text-rose-600">
-                {generateError}
-              </p>
-
-            </div>
-
-          )}
-
-
-          {/* ==================================================
-              API List
-          ================================================== */}
-
-          <div className="divide-y divide-slate-50">
-
-            {/* Loading */}
-
-            {loading && (
-
-              <div className="px-7 py-12 text-center">
-
-                <div className="inline-flex items-center gap-2 text-sm text-slate-500">
-
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-500" />
-
-                  Loading your APIs...
-
-                </div>
-
-              </div>
-
-            )}
-
-
-            {/* Error */}
-
-            {!loading && error && (
-
-              <div className="px-7 py-12 text-center">
-
-                <XCircle className="mx-auto h-7 w-7 text-rose-500" />
-
-                <p className="mt-3 text-sm font-medium text-slate-700">
-                  Unable to load your APIs
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
+                <h3 className="text-lg font-semibold text-[#1A1A2E]">
+                  Unable to load dashboard
+                </h3>
+
+                <p className="mt-1 text-[#DC2626]">
                   {error}
                 </p>
 
+                <button
+                  type="button"
+                  onClick={() =>
+                    window.location.reload()
+                  }
+                  className="mt-4 rounded-lg bg-[#1A1A2E] px-4 py-2 text-sm font-medium text-white transition-all hover:bg-[#2A2A4E]"
+                >
+                  Try again
+                </button>
+
               </div>
 
-            )}
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    );
+
+  }
 
 
-            {/* No accessible APIs */}
+  // ==========================================================
+  // MAIN DASHBOARD
+  // ==========================================================
 
-            {!loading &&
-              !error &&
-              accessibleApis.length === 0 && (
+  return (
 
-                <div className="px-7 py-12 text-center">
+    <div className="min-h-screen bg-[#FAFBFB] px-6 py-8 lg:px-10 lg:py-10">
 
-                  <Server className="mx-auto h-8 w-8 text-slate-300" />
+      <div className="mx-auto max-w-7xl">
 
-                  <p className="mt-3 text-sm font-medium text-slate-700">
-                    No API access yet
-                  </p>
 
-                  <p className="mt-1 text-xs text-slate-400">
-                    Subscribe to a package to access APIs.
-                  </p>
+        {/* ==================================================
+            HEADER
+        ================================================== */}
+
+        <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+
+          <div>
+
+            <div className="flex items-center gap-3">
+
+              <div className="rounded-lg bg-[#0E9594] p-1.5">
+
+                <Zap
+                  size={18}
+                  className="text-white"
+                />
+
+              </div>
+
+              <span className="text-xs font-medium uppercase tracking-wider text-[#0E9594]">
+                Dashboard Overview
+              </span>
+
+              <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-medium text-emerald-700">
+
+                <span className="relative flex h-1.5 w-1.5">
+
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+
+                </span>
+
+                Active
+
+              </span>
+
+            </div>
+
+
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#1A1A2E] sm:text-4xl">
+              Dashboard
+            </h1>
+
+
+            <p className="mt-1.5 text-sm text-[#6B7280]">
+              Monitor your API usage, consumption,
+              and subscription resources.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        {/* ==================================================
+            KEY METRICS
+        ================================================== */}
+
+        <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
+
+
+          {/* TOTAL API CALLS */}
+
+          <StatCard
+            title="Total API Calls"
+            value={metrics.total.toLocaleString()}
+            subtitle="Current period"
+            icon={
+              <Activity
+                size={20}
+                className="text-[#0E9594]"
+              />
+            }
+          />
+
+
+          {/* REMAINING CALLS */}
+
+          <StatCard
+            title="Remaining Calls"
+            value={metrics.remaining.toLocaleString()}
+            subtitle={`of ${metrics.limit.toLocaleString()}`}
+            icon={
+              <Gauge
+                size={20}
+                className="text-[#0E9594]"
+              />
+            }
+            progress={
+              metrics.usagePercentage
+            }
+          />
+
+
+          {/* TOTAL LIMIT */}
+
+          <StatCard
+            title="Total Limit"
+            value={metrics.limit.toLocaleString()}
+            subtitle="Requests available per subscription"
+            icon={
+              <Gauge
+                size={20}
+                className="text-[#0E9594]"
+              />
+            }
+          />
+
+        </div>
+
+
+        {/* ==================================================
+            USAGE SUMMARY
+        ================================================== */}
+
+        <div className="grid grid-cols-1 gap-6">
+
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
+
+            <div className="mb-5 flex items-center justify-between">
+
+              <div>
+
+                <h3 className="text-sm font-semibold text-[#1A1A2E]">
+                  Usage Summary
+                </h3>
+
+                <p className="mt-1 text-xs text-[#6B7280]">
+                  Current billing period
+                </p>
+
+              </div>
+
+              <Layers
+                size={18}
+                className="text-[#0E9594]"
+              />
+
+            </div>
+
+
+            <div className="space-y-5">
+
+
+              {/* USED */}
+
+              <div>
+
+                <div className="flex items-center justify-between">
+
+                  <span className="text-sm text-[#6B7280]">
+                    Used
+                  </span>
+
+                  <span className="text-sm font-semibold text-[#1A1A2E]">
+                    {metrics.total.toLocaleString()}
+                  </span>
 
                 </div>
 
-              )}
+              </div>
 
 
-            {/* Accessible APIs */}
+              {/* LIMIT */}
 
-            {!loading &&
-              !error &&
-              accessibleApis.map((api) => {
+              <div>
 
-                const generatedKey = keysByApiId[api.id];
+                <div className="flex items-center justify-between">
 
-                const isCopied = copiedKeyId === api.id;
+                  <span className="text-sm text-[#6B7280]">
+                    Limit
+                  </span>
 
-                const isGenerating = generatingApiId === api.id;
+                  <span className="text-sm font-semibold text-[#1A1A2E]">
+                    {metrics.limit.toLocaleString()}
+                  </span>
 
-                return (
+                </div>
 
-                  <div
-                    key={api.id}
-                    className="px-7 py-6 hover:bg-slate-50/50 transition-colors"
-                  >
+              </div>
 
-                    <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
 
+              {/* REMAINING */}
 
-                      {/* ==================================================
-                          API Information
-                      ================================================== */}
+              <div>
 
-                      <div className="flex items-start gap-4 min-w-0">
+                <div className="flex items-center justify-between">
 
-                        {/* Icon */}
+                  <span className="text-sm text-[#6B7280]">
+                    Remaining
+                  </span>
 
-                        <div className="flex-shrink-0 p-3 bg-gradient-to-br from-indigo-50 to-cyan-50 rounded-xl">
+                  <span className="text-sm font-semibold text-[#0E9594]">
+                    {metrics.remaining.toLocaleString()}
+                  </span>
 
-                          <Server className="h-5 w-5 text-indigo-500" />
+                </div>
 
-                        </div>
+              </div>
 
 
-                        {/* Details */}
+              {/* ACTIVE DAYS */}
 
-                        <div className="min-w-0">
+              <div className="border-t border-[#E5E7EB] pt-5">
 
-                          <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center justify-between">
 
-                            <h3 className="font-semibold text-slate-900">
-                              {api.name}
-                            </h3>
+                  <div className="flex items-center gap-2">
 
+                    <TrendingUp
+                      size={15}
+                      className="text-[#0E9594]"
+                    />
 
-                            {/* Category */}
-
-                            <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded">
-
-                              {api.category}
-
-                            </span>
-
-
-                            {/* Subscription access status */}
-
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded">
-
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-
-                              Active
-
-                            </span>
-
-                          </div>
-
-
-                          {/* Endpoint + Key / Generate */}
-
-                          <div className="mt-3 flex flex-wrap items-center gap-3">
-
-
-                            {/* Endpoint */}
-
-                            <span className="font-mono text-xs bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200 text-slate-500">
-
-                              {api.endpoint}
-
-                            </span>
-
-
-                            {/* Key generated: show masked key + copy */}
-
-                            {api.hasApiKey && generatedKey ? (
-
-                              <div className="inline-flex items-center gap-2 text-xs font-mono bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200">
-
-                                <KeyRound className="h-3 w-3 text-slate-400" />
-
-                                <span>
-                                  {generatedKey.key.substring(0, 8)}••••••••
-                                </span>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleCopyKey(generatedKey.key, api.id)
-                                  }
-                                  className="ml-1 inline-flex items-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
-                                  title="Copy API key"
-                                >
-
-                                  {isCopied ? (
-                                    <>
-                                      <Check className="h-3.5 w-3.5 text-emerald-500" />
-
-                                      <span className="font-sans text-xs text-emerald-600">
-                                        Copied
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Copy className="h-3.5 w-3.5" />
-
-                                      <span className="font-sans text-xs">
-                                        Copy
-                                      </span>
-                                    </>
-                                  )}
-
-                                </button>
-
-                              </div>
-
-                            ) : (
-
-                              /* No key yet: show Generate API Key */
-
-                              <button
-                                type="button"
-                                onClick={() => handleGenerateKey(api.id)}
-                                disabled={isGenerating}
-                                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-
-                                {isGenerating ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    Generating...
-                                  </>
-                                ) : (
-                                  <>
-                                    <KeyRound className="h-3.5 w-3.5" />
-                                    Generate API Key
-                                  </>
-                                )}
-
-                              </button>
-
-                            )}
-
-                          </div>
-
-
-                          {/* Created Date */}
-
-                          {api.hasApiKey && generatedKey && (
-
-                            <p className="mt-2 text-xs text-slate-400">
-
-                              API key created{' '}
-
-                              {new Date(
-                                generatedKey.createdAt
-                              ).toLocaleDateString()}
-
-                            </p>
-
-                          )}
-
-                        </div>
-
-                      </div>
-
-
-                      {/* ==================================================
-                          API Status
-                      ================================================== */}
-
-                      <div className="flex items-center gap-8 xl:gap-12">
-
-                        <div>
-
-                          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                            Key Status
-                          </p>
-
-                          <p
-                            className={`mt-1 text-sm font-medium ${
-                              api.hasApiKey
-                                ? 'text-emerald-600'
-                                : 'text-slate-400'
-                            }`}
-                          >
-                            {api.hasApiKey ? 'Generated' : 'Not generated'}
-                          </p>
-
-                        </div>
-                      </div>
-
-                    </div>
+                    <span className="text-sm text-[#6B7280]">
+                      Active days
+                    </span>
 
                   </div>
 
-                );
-              })}
+                  <span className="text-sm font-semibold text-[#1A1A2E]">
+                    {metrics.activeDays}
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
 
           </div>
 
@@ -694,7 +563,9 @@ const Dashboard = () => {
       </div>
 
     </div>
+
   );
+
 };
 
 export default Dashboard;

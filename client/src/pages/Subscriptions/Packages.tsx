@@ -197,7 +197,7 @@ const Packages: React.FC = () => {
         {/* Bottom Navigation */}
         <div className="mt-12 text-center">
           <Link
-            to="/subscriptions"
+            to="/dashboard/subscriptions"
             className="text-sm text-[#5B6270] hover:text-[#14161F] transition-colors"
           >
             ← Return to subscriptions

@@ -7,28 +7,18 @@ import {
   Download,
   FileText,
   Eye,
+  EyeOff,
   Receipt,
   Calendar,
   CreditCard,
+  RefreshCw,
 } from 'lucide-react';
 
-
-// ============================================================
-// TYPES
-// ============================================================
-
-interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  subscriptionId?: string;
-  packageName: string;
-  amount: number;
-  currency: string;
-  status: 'paid' | 'pending' | 'failed' | 'refunded';
-  paymentMethod?: string;
-  createdAt: string;
-  paidAt?: string;
-}
+import {
+  getMyInvoices,
+  type Invoice as InvoiceRecord,
+  type InvoiceSummary,
+} from '../../../services/payment.service';
 
 
 // ============================================================
@@ -36,7 +26,7 @@ interface Invoice {
 // ============================================================
 
 const STATUS_STYLES: Record<
-  Invoice['status'],
+  InvoiceRecord['status'],
   {
     label: string;
     badge: string;
@@ -69,21 +59,33 @@ const STATUS_STYLES: Record<
 };
 
 
+// Fallback so an unexpected status never crashes the row
+const FALLBACK_STATUS_STYLE = {
+  label: 'Unknown',
+  badge: 'bg-[#EEEFEC] text-[#5B6270]',
+  dot: 'bg-[#A9AEB9]',
+};
+
+
 // ============================================================
 // HELPERS
 // ============================================================
 
 const formatDate = (
-  dateString?: string
+  dateString?: string | null
 ) => {
 
   if (!dateString) {
     return '—';
   }
 
-  return new Date(
-    dateString
-  ).toLocaleDateString(
+  const date = new Date(dateString);
+
+  if (isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return date.toLocaleDateString(
     undefined,
     {
       year: 'numeric',
@@ -114,7 +116,12 @@ const Invoice: React.FC = () => {
   const [
     invoices,
     setInvoices,
-  ] = useState<Invoice[]>([]);
+  ] = useState<InvoiceRecord[]>([]);
+
+  const [
+    summary,
+    setSummary,
+  ] = useState<InvoiceSummary | null>(null);
 
   const [
     loading,
@@ -126,55 +133,57 @@ const Invoice: React.FC = () => {
     setError,
   ] = useState<string | null>(null);
 
+  const [
+    expandedId,
+    setExpandedId,
+  ] = useState<string | null>(null);
+
 
   // ==========================================================
   // LOAD INVOICES
   // ==========================================================
 
+  const loadInvoices = async () => {
+
+    try {
+
+      setLoading(true);
+      setError(null);
+
+      const response =
+        await getMyInvoices();
+
+      setInvoices(
+        response.data || []
+      );
+
+      setSummary(
+        response.summary || null
+      );
+
+    } catch (err) {
+
+      console.error(
+        'Invoice loading error:',
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load invoices'
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  };
+
+
   useEffect(() => {
-
-    const loadInvoices = async () => {
-
-      try {
-
-        setLoading(true);
-        setError(null);
-
-        /*
-         * Invoice API is not connected yet.
-         *
-         * Once the backend invoice endpoint exists,
-         * replace this section with the invoice service call.
-         *
-         * Example:
-         *
-         * const response = await getMyInvoices();
-         * setInvoices(response.data);
-         */
-
-        setInvoices([]);
-
-      } catch (err) {
-
-        console.error(
-          'Invoice loading error:',
-          err
-        );
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to load invoices'
-        );
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    };
-
 
     loadInvoices();
 
@@ -182,22 +191,55 @@ const Invoice: React.FC = () => {
 
 
   // ==========================================================
+  // SUMMARY
+  // ==========================================================
+  //
+  // Prefer the server-computed summary. Fall back to deriving
+  // it locally so the cards still work if the shape changes.
+  // ==========================================================
+
+  const summaryData =
+    summary ?? {
+
+      totalInvoices:
+        invoices.length,
+
+      paidInvoices:
+        invoices.filter(
+          invoice => invoice.status === 'paid'
+        ).length,
+
+      totalPaid:
+        invoices
+          .filter(
+            invoice => invoice.status === 'paid'
+          )
+          .reduce(
+            (total, invoice) =>
+              total + invoice.amount,
+            0
+          ),
+
+      currency:
+        invoices[0]?.currency || 'NPR',
+
+    };
+
+
+  // ==========================================================
   // VIEW INVOICE
   // ==========================================================
 
   const handleViewInvoice = (
-    invoice: Invoice
+    invoice: InvoiceRecord
   ) => {
 
-    console.log(
-      'View invoice:',
-      invoice.id
+    setExpandedId(
+      current =>
+        current === invoice.id
+          ? null
+          : invoice.id
     );
-
-    /*
-     * Backend invoice/document endpoint
-     * will be connected here later.
-     */
 
   };
 
@@ -205,20 +247,86 @@ const Invoice: React.FC = () => {
   // ==========================================================
   // DOWNLOAD INVOICE
   // ==========================================================
+  //
+  // Generates a plain-text receipt in the browser. Replace this
+  // with a real server-side PDF endpoint once the invoice
+  // system exists.
+  // ==========================================================
 
   const handleDownloadInvoice = (
-    invoice: Invoice
+    invoice: InvoiceRecord
   ) => {
 
-    console.log(
-      'Download invoice:',
-      invoice.id
-    );
+    const statusLabel =
+      (
+        STATUS_STYLES[invoice.status] ??
+        FALLBACK_STATUS_STYLE
+      ).label;
 
-    /*
-     * Backend PDF generation/download endpoint
-     * will be connected here later.
-     */
+
+    const lines: (string | null)[] = [
+
+      'NYMBL — PAYMENT RECEIPT',
+      '==========================================',
+      '',
+      `Invoice Number : ${invoice.invoiceNumber}`,
+      `Status         : ${statusLabel}`,
+      `Issued         : ${formatDate(invoice.createdAt)}`,
+      `Paid           : ${formatDate(invoice.paidAt)}`,
+      '',
+      '------------------------------------------',
+      `Package        : ${invoice.packageName}`,
+
+      invoice.billingCycle
+        ? `Billing Cycle  : ${invoice.billingCycle}`
+        : null,
+
+      `Amount         : ${formatCurrency(invoice.amount, invoice.currency)}`,
+      '------------------------------------------',
+      '',
+      `Payment Method : ${invoice.paymentMethod || '—'}`,
+      `Transaction    : ${invoice.transactionCode || '—'}`,
+      `Reference      : ${invoice.transactionUuid || '—'}`,
+      '',
+      'Thank you for building with Nymbl.',
+
+    ];
+
+
+    const content =
+      lines
+        .filter(
+          (line): line is string => line !== null
+        )
+        .join('\n');
+
+
+    const blob =
+      new Blob(
+        [content],
+        { type: 'text/plain;charset=utf-8' }
+      );
+
+
+    const url =
+      URL.createObjectURL(blob);
+
+
+    const anchor =
+      document.createElement('a');
+
+    anchor.href = url;
+
+    anchor.download =
+      `${invoice.invoiceNumber}.txt`;
+
+    document.body.appendChild(anchor);
+
+    anchor.click();
+
+    document.body.removeChild(anchor);
+
+    URL.revokeObjectURL(url);
 
   };
 
@@ -240,6 +348,22 @@ const Invoice: React.FC = () => {
             <div className="h-8 w-48 animate-pulse rounded-md bg-[#E2E4E0]" />
 
             <div className="mt-3 h-4 w-80 animate-pulse rounded-md bg-[#E2E4E0]" />
+
+          </div>
+
+
+          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+            {Array.from({ length: 3 }).map(
+              (_, index) => (
+
+                <div
+                  key={index}
+                  className="h-24 animate-pulse rounded-lg border border-[#E2E4E0] bg-white"
+                />
+
+              )
+            )}
 
           </div>
 
@@ -277,6 +401,18 @@ const Invoice: React.FC = () => {
               {error}
             </p>
 
+            <button
+              type="button"
+              onClick={loadInvoices}
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-[#14161F] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#272A36]"
+            >
+
+              <RefreshCw size={14} />
+
+              Try again
+
+            </button>
+
           </div>
 
         </div>
@@ -303,20 +439,37 @@ const Invoice: React.FC = () => {
             HEADER
         ================================================== */}
 
-        <div className="mb-10">
+        <div className="mb-10 flex flex-wrap items-start justify-between gap-4">
 
-          <span className="font-mono text-xs uppercase tracking-wider text-[#0E9594]">
-            Billing
-          </span>
+          <div>
 
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-[#14161F]">
-            Invoice Management
-          </h1>
+            <span className="font-mono text-xs uppercase tracking-wider text-[#0E9594]">
+              Billing
+            </span>
 
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5B6270]">
-            View your purchase history, payment records,
-            and invoices for your API subscriptions.
-          </p>
+            <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-[#14161F]">
+              Invoice Management
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5B6270]">
+              View your purchase history, payment records,
+              and invoices for your API subscriptions.
+            </p>
+
+          </div>
+
+
+          <button
+            type="button"
+            onClick={loadInvoices}
+            className="inline-flex items-center gap-2 rounded-md border border-[#D7D9D3] px-3 py-2 text-xs font-medium text-[#3A3F4B] transition-colors hover:border-[#14161F] hover:text-[#14161F]"
+          >
+
+            <RefreshCw size={14} />
+
+            Refresh
+
+          </button>
 
         </div>
 
@@ -343,7 +496,7 @@ const Invoice: React.FC = () => {
                   </p>
 
                   <p className="mt-2 font-display text-2xl font-semibold text-[#14161F]">
-                    {invoices.length}
+                    {summaryData.totalInvoices}
                   </p>
 
                 </div>
@@ -375,12 +528,7 @@ const Invoice: React.FC = () => {
                   </p>
 
                   <p className="mt-2 font-display text-2xl font-semibold text-[#14161F]">
-                    {
-                      invoices.filter(
-                        invoice =>
-                          invoice.status === 'paid'
-                      ).length
-                    }
+                    {summaryData.paidInvoices}
                   </p>
 
                 </div>
@@ -413,26 +561,10 @@ const Invoice: React.FC = () => {
 
                   <p className="mt-2 font-display text-2xl font-semibold text-[#14161F]">
 
-                    {
-                      formatCurrency(
-                        invoices
-                          .filter(
-                            invoice =>
-                              invoice.status === 'paid'
-                          )
-                          .reduce(
-                            (
-                              total,
-                              invoice
-                            ) =>
-                              total +
-                              invoice.amount,
-                            0
-                          ),
-                        invoices[0]?.currency ||
-                          'NPR'
-                      )
-                    }
+                    {formatCurrency(
+                      summaryData.totalPaid,
+                      summaryData.currency
+                    )}
 
                   </p>
 
@@ -558,168 +690,259 @@ const Invoice: React.FC = () => {
                   <tbody>
 
                     {invoices.map(
-                      (
-                        invoice,
-                        index
-                      ) => {
+                      (invoice, index) => {
 
                         const statusStyle =
-                          STATUS_STYLES[
-                            invoice.status
-                          ];
+                          STATUS_STYLES[invoice.status] ??
+                          FALLBACK_STATUS_STYLE;
+
+
+                        const isExpanded =
+                          expandedId === invoice.id;
+
+
+                        const isLast =
+                          index === invoices.length - 1;
+
 
                         return (
 
-                          <tr
-                            key={invoice.id}
-                            className={
-                              index !==
-                              invoices.length - 1
-                                ? 'border-b border-[#E2E4E0]'
-                                : ''
-                            }
-                          >
+                          <React.Fragment key={invoice.id}>
 
-                            {/* Invoice */}
+                            <tr
+                              className={
+                                !isLast || isExpanded
+                                  ? 'border-b border-[#E2E4E0]'
+                                  : ''
+                              }
+                            >
 
-                            <td className="px-5 py-4">
+                              {/* Invoice */}
 
-                              <div className="flex items-center gap-3">
+                              <td className="px-5 py-4">
 
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#F4F5F2]">
+                                <div className="flex items-center gap-3">
 
-                                  <FileText
-                                    size={17}
-                                    className="text-[#5B6270]"
-                                  />
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#F4F5F2]">
+
+                                    <FileText
+                                      size={17}
+                                      className="text-[#5B6270]"
+                                    />
+
+                                  </div>
+
+                                  <span className="font-mono text-sm font-medium text-[#14161F]">
+                                    {invoice.invoiceNumber}
+                                  </span>
 
                                 </div>
 
-                                <span className="font-mono text-sm font-medium text-[#14161F]">
-                                  {invoice.invoiceNumber}
+                              </td>
+
+
+                              {/* Package */}
+
+                              <td className="px-5 py-4">
+
+                                <span className="text-sm text-[#3A3F4B]">
+                                  {invoice.packageName}
                                 </span>
 
-                              </div>
-
-                            </td>
+                              </td>
 
 
-                            {/* Package */}
+                              {/* Date */}
 
-                            <td className="px-5 py-4">
+                              <td className="px-5 py-4">
 
-                              <span className="text-sm text-[#3A3F4B]">
-                                {invoice.packageName}
-                              </span>
+                                <div className="flex items-center gap-2">
 
-                            </td>
+                                  <Calendar
+                                    size={15}
+                                    className="text-[#8B909C]"
+                                  />
+
+                                  <span className="text-sm text-[#5B6270]">
+                                    {formatDate(invoice.createdAt)}
+                                  </span>
+
+                                </div>
+
+                              </td>
 
 
-                            {/* Date */}
+                              {/* Amount */}
 
-                            <td className="px-5 py-4">
+                              <td className="px-5 py-4">
 
-                              <div className="flex items-center gap-2">
-
-                                <Calendar
-                                  size={15}
-                                  className="text-[#8B909C]"
-                                />
-
-                                <span className="text-sm text-[#5B6270]">
-                                  {formatDate(
-                                    invoice.createdAt
+                                <span className="font-mono text-sm font-medium text-[#14161F]">
+                                  {formatCurrency(
+                                    invoice.amount,
+                                    invoice.currency
                                   )}
                                 </span>
 
-                              </div>
-
-                            </td>
+                              </td>
 
 
-                            {/* Amount */}
+                              {/* Status */}
 
-                            <td className="px-5 py-4">
-
-                              <span className="font-mono text-sm font-medium text-[#14161F]">
-                                {
-                                  formatCurrency(
-                                    invoice.amount,
-                                    invoice.currency
-                                  )
-                                }
-                              </span>
-
-                            </td>
-
-
-                            {/* Status */}
-
-                            <td className="px-5 py-4">
-
-                              <span
-                                className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-mono ${statusStyle.badge}`}
-                              >
+                              <td className="px-5 py-4">
 
                                 <span
-                                  className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`}
-                                />
-
-                                {statusStyle.label}
-
-                              </span>
-
-                            </td>
-
-
-                            {/* Actions */}
-
-                            <td className="px-5 py-4">
-
-                              <div className="flex items-center justify-end gap-2">
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleViewInvoice(
-                                      invoice
-                                    )
-                                  }
-                                  className="inline-flex items-center gap-1.5 rounded-md border border-[#D7D9D3] px-3 py-2 text-xs font-medium text-[#3A3F4B] transition-colors hover:border-[#14161F] hover:text-[#14161F]"
+                                  className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-mono ${statusStyle.badge}`}
                                 >
 
-                                  <Eye
-                                    size={14}
+                                  <span
+                                    className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`}
                                   />
 
-                                  View
+                                  {statusStyle.label}
 
-                                </button>
+                                </span>
+
+                              </td>
 
 
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleDownloadInvoice(
-                                      invoice
-                                    )
-                                  }
-                                  className="inline-flex items-center gap-1.5 rounded-md bg-[#14161F] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-[#272A36]"
+                              {/* Actions */}
+
+                              <td className="px-5 py-4">
+
+                                <div className="flex items-center justify-end gap-2">
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleViewInvoice(invoice)
+                                    }
+                                    className="inline-flex items-center gap-1.5 rounded-md border border-[#D7D9D3] px-3 py-2 text-xs font-medium text-[#3A3F4B] transition-colors hover:border-[#14161F] hover:text-[#14161F]"
+                                  >
+
+                                    {isExpanded
+                                      ? <EyeOff size={14} />
+                                      : <Eye size={14} />}
+
+                                    {isExpanded ? 'Hide' : 'View'}
+
+                                  </button>
+
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleDownloadInvoice(invoice)
+                                    }
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-[#14161F] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-[#272A36]"
+                                  >
+
+                                    <Download size={14} />
+
+                                    Download
+
+                                  </button>
+
+                                </div>
+
+                              </td>
+
+                            </tr>
+
+
+                            {/* ==========================================
+                                EXPANDED DETAIL
+                            ========================================== */}
+
+                            {isExpanded && (
+
+                              <tr
+                                className={
+                                  !isLast
+                                    ? 'border-b border-[#E2E4E0]'
+                                    : ''
+                                }
+                              >
+
+                                <td
+                                  colSpan={6}
+                                  className="bg-[#FAFBF9] px-5 py-5"
                                 >
 
-                                  <Download
-                                    size={14}
-                                  />
+                                  <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
 
-                                  Download
+                                    <div>
 
-                                </button>
+                                      <dt className="text-xs font-mono uppercase tracking-wide text-[#8B909C]">
+                                        Payment Method
+                                      </dt>
 
-                              </div>
+                                      <dd className="mt-1 text-sm capitalize text-[#3A3F4B]">
+                                        {invoice.paymentMethod || '—'}
+                                      </dd>
 
-                            </td>
+                                    </div>
 
-                          </tr>
+
+                                    <div>
+
+                                      <dt className="text-xs font-mono uppercase tracking-wide text-[#8B909C]">
+                                        Paid On
+                                      </dt>
+
+                                      <dd className="mt-1 text-sm text-[#3A3F4B]">
+                                        {formatDate(invoice.paidAt)}
+                                      </dd>
+
+                                    </div>
+
+
+                                    <div>
+
+                                      <dt className="text-xs font-mono uppercase tracking-wide text-[#8B909C]">
+                                        Billing Cycle
+                                      </dt>
+
+                                      <dd className="mt-1 text-sm capitalize text-[#3A3F4B]">
+                                        {invoice.billingCycle || '—'}
+                                      </dd>
+
+                                    </div>
+
+
+                                    <div>
+
+                                      <dt className="text-xs font-mono uppercase tracking-wide text-[#8B909C]">
+                                        Transaction Code
+                                      </dt>
+
+                                      <dd className="mt-1 break-all font-mono text-sm text-[#3A3F4B]">
+                                        {invoice.transactionCode || '—'}
+                                      </dd>
+
+                                    </div>
+
+
+                                    <div className="sm:col-span-2 lg:col-span-4">
+
+                                      <dt className="text-xs font-mono uppercase tracking-wide text-[#8B909C]">
+                                        Reference
+                                      </dt>
+
+                                      <dd className="mt-1 break-all font-mono text-xs text-[#5B6270]">
+                                        {invoice.transactionUuid || '—'}
+                                      </dd>
+
+                                    </div>
+
+                                  </dl>
+
+                                </td>
+
+                              </tr>
+
+                            )}
+
+                          </React.Fragment>
 
                         );
 

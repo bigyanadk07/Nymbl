@@ -821,6 +821,140 @@ return res.redirect(
   }
 };
 
+/*
+ * ============================================================
+ * GET MY PAYMENTS  (INVOICES)
+ * ============================================================
+ *
+ * The Payment collection is the source of truth for invoices.
+ *
+ * Payment.status maps onto the invoice status the frontend
+ * expects — note that 'success' becomes 'paid':
+ *
+ *   success   ->  paid
+ *   pending   ->  pending
+ *   failed    ->  failed
+ *   refunded  ->  refunded
+ *
+ * ============================================================
+ */
+
+const INVOICE_STATUS_MAP = {
+  success: 'paid',
+  pending: 'pending',
+  failed: 'failed',
+  refunded: 'refunded'
+};
+
+
+/*
+ * Build a stable, human-readable invoice number.
+ *
+ * Payment has no invoiceNumber field yet, so we derive one
+ * deterministically from the payment date and its id. The same
+ * payment always yields the same number, so it is safe to show
+ * to users and to reference in support conversations.
+ *
+ * Example:  NYM-202609-4F9C2A
+ */
+const buildInvoiceNumber = (payment) => {
+  const created = payment.createdAt
+    ? new Date(payment.createdAt)
+    : new Date();
+
+  const year = created.getFullYear();
+
+  const month = String(created.getMonth() + 1).padStart(2, '0');
+
+  const suffix = String(payment._id)
+    .replace(/-/g, '')
+    .slice(0, 6)
+    .toUpperCase();
+
+  return `NYM-${year}${month}-${suffix}`;
+};
+
+
+const getMyPayments = async (req, res) => {
+  try {
+    const payments = await Payment.find({
+      userId: req.user._id
+    })
+      .populate('packageId')
+      .sort({ createdAt: -1 });
+
+    const invoices = payments.map(payment => ({
+      id: payment._id,
+
+      invoiceNumber: buildInvoiceNumber(payment),
+
+      subscriptionId: payment.subscriptionId,
+
+      // Guard: packageId populates to null if the package was deleted
+      packageId: payment.packageId
+        ? payment.packageId._id
+        : null,
+
+      packageName: payment.packageId
+        ? payment.packageId.name
+        : 'Unavailable package',
+
+      billingCycle: payment.packageId
+        ? payment.packageId.billingCycle
+        : null,
+
+      amount: payment.amount,
+
+      currency: payment.currency || 'NPR',
+
+      status: INVOICE_STATUS_MAP[payment.status] || 'pending',
+
+      paymentMethod: payment.provider,
+
+      transactionCode: payment.transactionCode,
+
+      transactionUuid: payment.transactionUuid,
+
+      createdAt: payment.createdAt,
+
+      paidAt: payment.paidAt
+    }));
+
+    /*
+     * Compute the summary server-side so the numbers stay
+     * consistent no matter which client renders them.
+     */
+    const paidInvoices = invoices.filter(
+      invoice => invoice.status === 'paid'
+    );
+
+    return res.json({
+      success: true,
+
+      summary: {
+        totalInvoices: invoices.length,
+
+        paidInvoices: paidInvoices.length,
+
+        totalPaid: paidInvoices.reduce(
+          (total, invoice) => total + (invoice.amount || 0),
+          0
+        ),
+
+        currency: invoices[0]?.currency || 'NPR'
+      },
+
+      data: invoices
+    });
+  } catch (err) {
+    console.error('Get my payments error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
 
 module.exports = {
 
@@ -828,6 +962,8 @@ module.exports = {
 
   handleEsewaSuccess,
 
-  handleEsewaFailure
+  handleEsewaFailure,
+
+  getMyPayments
 
 };

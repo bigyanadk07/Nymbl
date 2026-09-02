@@ -7,10 +7,19 @@ const router = express.Router();
 const {
   initiateEsewaPayment,
   handleEsewaSuccess,
-  handleEsewaFailure
+  handleEsewaFailure,
+  getMyPayments
 } = require('../controllers/payment.controller');
 
 const authMiddleware = require('../middleware/auth.middleware');
+
+
+// Get the logged-in user's payments (invoices)
+router.get(
+  '/my',
+  authMiddleware,
+  getMyPayments
+);
 
 
 // Initiate eSewa payment

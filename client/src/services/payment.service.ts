@@ -61,3 +61,93 @@ export const initiateEsewaPayment = async (
 
   return data;
 };
+
+// ============================================================
+// INVOICES
+// ============================================================
+
+export type InvoiceStatus =
+  | 'paid'
+  | 'pending'
+  | 'failed'
+  | 'refunded';
+
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  subscriptionId?: string;
+  packageId?: string | null;
+  packageName: string;
+  billingCycle?: string | null;
+  amount: number;
+  currency: string;
+  status: InvoiceStatus;
+  paymentMethod?: string;
+  transactionCode?: string | null;
+  transactionUuid?: string;
+  createdAt: string;
+  paidAt?: string | null;
+}
+
+
+export interface InvoiceSummary {
+  totalInvoices: number;
+  paidInvoices: number;
+  totalPaid: number;
+  currency: string;
+}
+
+
+export interface MyInvoicesResponse {
+  success: boolean;
+  summary: InvoiceSummary;
+  data: Invoice[];
+  message?: string;
+}
+
+
+export const getMyInvoices =
+  async (): Promise<MyInvoicesResponse> => {
+
+    const token =
+      localStorage.getItem('token');
+
+
+    const response =
+      await fetch(
+        `${API_URL}/payments/my`,
+        {
+          method: 'GET',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+
+            ...(token
+              ? {
+                  Authorization:
+                    `Bearer ${token}`,
+                }
+              : {}),
+          },
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.message ||
+        'Failed to load invoices'
+      );
+
+    }
+
+
+    return data;
+  };

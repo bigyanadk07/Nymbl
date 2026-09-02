@@ -19,6 +19,7 @@ import ApiTokens from './pages/Dashboard/Sections/ApiTokens';
 import UsageOverview from './pages/Dashboard/Sections/UsuageOverview';
 import DashboardSubscriptions from './pages/Dashboard/Sections/Subscriptions';
 import UserInvoice from './pages/Dashboard/Sections/Invoice';
+import Settings from './pages/Dashboard/Sections/PersonalSettings';
 
 import Packages from './pages/Subscriptions/Packages';
 import PackageDetails from './pages/Subscriptions/PackageDetails';
@@ -117,6 +118,14 @@ const App: React.FC = () => {
                 element={<UserInvoice />}
               />
 
+             {/* -----------------------------------------------
+                  Personal Settings
+              ----------------------------------------------- */}
+
+              <Route
+                path="/dashboard/settings"
+                element={<Settings />}
+              />
 
               {/* -----------------------------------------------
                   Subscriptions
